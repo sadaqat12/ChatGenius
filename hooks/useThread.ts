@@ -14,7 +14,7 @@ export const useThread = () => {
 
   const openThread = useCallback((message: Message) => {
     // Validate that we're opening a thread for a parent message
-    if (message.threadId || message.parentId) {
+    if (message.parentId) {
       console.error('Attempted to open thread for a reply message');
       return;
     }

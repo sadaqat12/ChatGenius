@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { teamData, messages } from "@/lib/mock-data"
+import { teamData } from "@/lib/mock-data"
 import { ActiveChat } from "@/app/page"
 import { Search } from 'lucide-react'
+import { useMessages } from "@/hooks/useMessages"
 
 interface SearchResult {
   type: 'channel' | 'directMessage'
@@ -25,6 +26,12 @@ export function SearchBar({ activeTeam, setActiveChat }: SearchBarProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
 
+  // Get messages for all channels in the current team
+  const channelMessages = teamData[activeTeam].channels.map(channel => {
+    const { messages } = useMessages({ channelId: String(channel.id) });
+    return { channelId: channel.id, messages };
+  });
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim() === '') {
@@ -42,27 +49,29 @@ export function SearchBar({ activeTeam, setActiveChat }: SearchBarProps) {
       }
 
       // Search messages within the channel
-      const channelMessages = messages.channels[channel.id] || []
-      channelMessages.forEach(message => {
-        if (message.content.toLowerCase().includes(query.toLowerCase())) {
-          results.push({
-            type: 'channel',
-            id: channel.id,
-            name: channel.name,
-            threadId: message.threadId,
-            messagePreview: message.content
-          })
-        }
-        if (message.file && message.file.name.toLowerCase().includes(query.toLowerCase())) {
-          results.push({
-            type: 'channel',
-            id: channel.id,
-            name: channel.name,
-            threadId: message.threadId,
-            fileName: message.file.name
-          })
-        }
-      })
+      const channelData = channelMessages.find(cm => cm.channelId === channel.id);
+      if (channelData) {
+        channelData.messages.forEach(message => {
+          if (message.content.toLowerCase().includes(query.toLowerCase())) {
+            results.push({
+              type: 'channel',
+              id: channel.id,
+              name: channel.name,
+              threadId: message.parentId ? Number(message.parentId) : undefined,
+              messagePreview: message.content
+            })
+          }
+          if (message.file && message.file.name.toLowerCase().includes(query.toLowerCase())) {
+            results.push({
+              type: 'channel',
+              id: channel.id,
+              name: channel.name,
+              threadId: message.parentId ? Number(message.parentId) : undefined,
+              fileName: message.file.name
+            })
+          }
+        })
+      }
     })
 
     // Search direct messages
@@ -70,19 +79,6 @@ export function SearchBar({ activeTeam, setActiveChat }: SearchBarProps) {
       if (dm.name.toLowerCase().includes(query.toLowerCase())) {
         results.push({ type: 'directMessage', id: dm.id, name: dm.name })
       }
-
-      // Search messages within the direct message
-      const dmMessages = messages.directMessages[dm.id] || []
-      dmMessages.forEach(message => {
-        if (message.content.toLowerCase().includes(query.toLowerCase())) {
-          results.push({
-            type: 'directMessage',
-            id: dm.id,
-            name: dm.name,
-            messagePreview: message.content
-          })
-        }
-      })
     })
 
     setSearchResults(results)
