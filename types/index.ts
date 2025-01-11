@@ -13,15 +13,10 @@ export interface Channel {
   allowedUserIds?: string[];  // For private channels
 }
 
-export interface Message {
+export interface User {
   id: string;
-  content: string;
-  createdAt: Date;
-  userId: string;
-  channelId: string;
-  parentId: string | null;    // null for main messages, message ID for replies
-  replyCount: number;
-  reactions: Reaction[];
+  name: string;
+  role: 'admin' | 'user';
 }
 
 export interface Reaction {
@@ -29,10 +24,4 @@ export interface Reaction {
   emoji: string;
   userId: string;
   messageId: string;
-}
-
-export interface User {
-  id: string;
-  name: string;
-  role: 'admin' | 'user';
 } 

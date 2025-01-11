@@ -40,19 +40,22 @@ export class SupabaseMessageService implements MessageService {
       .from('messages')
       .select(`
         *,
-        user:users (
+        user:user_id (
           id,
-          name,
-          avatar
+          email,
+          user_profiles (
+            name,
+            avatar_url
+          )
         ),
         reactions (
           id,
           emoji,
-          userId
+          user_id
         )
       `)
-      .eq('channelId', channelId)
-      .order('createdAt', { ascending: true });
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
     if (!data) return [];
@@ -60,28 +63,40 @@ export class SupabaseMessageService implements MessageService {
     return data.map(msg => ({
       id: msg.id,
       content: msg.content,
-      createdAt: new Date(msg.createdAt),
-      userId: msg.userId,
-      channelId: msg.channelId,
-      parentId: msg.parentId,
-      user: msg.user,
+      channel_id: msg.channel_id,
+      user_id: msg.user_id,
+      parent_id: msg.parent_id,
       file: msg.file,
-      reactions: msg.reactions
+      created_at: msg.created_at,
+      updated_at: msg.updated_at,
+      user: {
+        id: msg.user.id,
+        name: msg.user.user_profiles[0]?.name || msg.user.email,
+        avatar: msg.user.user_profiles[0]?.avatar_url
+      },
+      reactions: msg.reactions?.map((r: { id: string; emoji: string; user_id: string }) => ({
+        id: r.id,
+        emoji: r.emoji,
+        userId: r.user_id
+      })) || []
     }));
   }
 
-  async createMessage(message: Omit<Message, 'id' | 'createdAt'>): Promise<Message> {
+  async createMessage(message: Omit<Message, 'id' | 'created_at'>): Promise<Message> {
     // Get the current user's session
     const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
     if (sessionError) throw sessionError;
     if (!session) throw new Error('Not authenticated');
 
-    // If there's a file with an empty URL, it means we need to upload it
+    // If there's a file, upload it first
     let fileData = message.file;
-    if (fileData && !fileData.url && fileData.name) {
-      const file = await fetch(fileData.url).then(res => res.blob());
-      const publicUrl = await this.uploadFile(new File([file], fileData.name, { type: fileData.type }));
-      fileData = { ...fileData, url: publicUrl };
+    if (fileData && fileData instanceof File) {
+      const publicUrl = await this.uploadFile(fileData);
+      fileData = {
+        name: fileData.name,
+        type: fileData.type,
+        url: publicUrl
+      };
     }
 
     // Insert the message into the messages table
@@ -89,17 +104,20 @@ export class SupabaseMessageService implements MessageService {
       .from('messages')
       .insert({
         content: message.content,
-        userId: session.user.id,
-        channelId: message.channelId,
-        parentId: message.parentId,
+        user_id: session.user.id,
+        channel_id: message.channel_id,
+        parent_id: message.parent_id,
         file: fileData
       })
       .select(`
         *,
-        user:users (
+        user:user_id (
           id,
-          name,
-          avatar
+          email,
+          user_profiles (
+            name,
+            avatar_url
+          )
         )
       `)
       .single();
@@ -108,8 +126,19 @@ export class SupabaseMessageService implements MessageService {
     if (!data) throw new Error('Failed to create message');
 
     return {
-      ...data,
-      createdAt: new Date(data.createdAt),
+      id: data.id,
+      content: data.content,
+      channel_id: data.channel_id,
+      user_id: data.user_id,
+      parent_id: data.parent_id,
+      file: data.file,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      user: {
+        id: data.user.id,
+        name: data.user.user_profiles[0]?.name || data.user.email,
+        avatar: data.user.user_profiles[0]?.avatar_url
+      },
       reactions: []
     };
   }
@@ -122,11 +151,11 @@ export class SupabaseMessageService implements MessageService {
 
     // Insert a new reaction into the reactions table
     const { error } = await this.supabase
-      .from('reactions')
+      .from('message_reactions')
       .insert({
-        messageId,
-        emoji,
-        userId: session.user.id
+        message_id: messageId,
+        user_id: session.user.id,
+        emoji
       });
 
     if (error) throw error;
@@ -140,12 +169,12 @@ export class SupabaseMessageService implements MessageService {
 
     // Delete the reaction from the reactions table
     const { error } = await this.supabase
-      .from('reactions')
+      .from('message_reactions')
       .delete()
       .match({
-        messageId,
-        emoji,
-        userId: session.user.id
+        message_id: messageId,
+        user_id: session.user.id,
+        emoji
       });
 
     if (error) throw error;

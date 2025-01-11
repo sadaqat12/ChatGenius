@@ -1,99 +1,103 @@
-import { useState, useEffect } from 'react';
-import { useMessages } from './useMessages';
-import { teamData } from '@/lib/mock-data';
+'use client'
+
+import { useState, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
+import { Message, Channel } from '@/types/chat'
+import debounce from 'lodash/debounce'
 
 interface SearchResult {
-  type: 'channel' | 'directMessage';
-  id: number;
-  name: string;
-  threadId?: number;
-  messagePreview?: string;
-  fileName?: string;
+  type: 'message' | 'channel'
+  id: string
+  title: string
+  subtitle?: string
 }
 
-interface Channel {
-  id: number;
-  name: string;
-}
+export function useSearch() {
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
 
-interface DirectMessage {
-  id: number;
-  name: string;
-}
-
-interface TeamData {
-  channels: Channel[];
-  directMessages: DirectMessage[];
-}
-
-interface UseSearchProps {
-  activeTeam: number;
-  channelId: string;
-}
-
-export function useSearch({ activeTeam, channelId }: UseSearchProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const { messages } = useMessages({ channelId });
-
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setSearchResults([]);
-      return;
+  const performSearch = async (query: string) => {
+    if (!query.trim()) {
+      setResults([])
+      setIsSearching(false)
+      return
     }
 
-    const currentTeamData = teamData[activeTeam] as TeamData;
-    const results: SearchResult[] = [];
+    try {
+      // Search messages
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          content,
+          channel_id,
+          sender:users!user_id (
+            id,
+            email,
+            user_profiles (
+              name
+            )
+          )
+        `)
+        .ilike('content', `%${query}%`)
+        .limit(5)
 
-    // Search channels
-    currentTeamData.channels.forEach((channel) => {
-      if (channel.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        results.push({ type: 'channel', id: channel.id, name: channel.name });
-      }
-    });
+      if (messagesError) throw messagesError
 
-    // Search messages
-    messages.forEach((message) => {
-      if (message.content.toLowerCase().includes(searchQuery.toLowerCase())) {
-        const channel = currentTeamData.channels.find(c => c.id === Number(message.channelId));
-        if (channel) {
-          results.push({
-            type: 'channel',
-            id: channel.id,
-            name: channel.name,
-            threadId: message.parentId ? Number(message.parentId) : undefined,
-            messagePreview: message.content
-          });
-        }
-      }
-      if (message.file && message.file.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        const channel = currentTeamData.channels.find(c => c.id === Number(message.channelId));
-        if (channel) {
-          results.push({
-            type: 'channel',
-            id: channel.id,
-            name: channel.name,
-            threadId: message.parentId ? Number(message.parentId) : undefined,
-            fileName: message.file.name
-          });
-        }
-      }
-    });
+      // Search channels
+      const { data: channels, error: channelsError } = await supabase
+        .from('channels')
+        .select('id, name, description')
+        .ilike('name', `%${query}%`)
+        .limit(5)
 
-    // Search direct messages
-    currentTeamData.directMessages.forEach((dm) => {
-      if (dm.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        results.push({ type: 'directMessage', id: dm.id, name: dm.name });
-      }
-    });
+      if (channelsError) throw channelsError
 
-    setSearchResults(results);
-  }, [searchQuery, messages, activeTeam]);
+      // Combine and format results
+      const messageResults: SearchResult[] = (messages || []).map(msg => ({
+        type: 'message',
+        id: msg.id,
+        title: msg.content,
+        subtitle: `by ${msg.sender?.user_profiles?.[0]?.name || msg.sender?.email || 'Unknown user'}`
+      }))
+
+      const channelResults: SearchResult[] = (channels || []).map(channel => ({
+        type: 'channel',
+        id: channel.id,
+        title: channel.name,
+        subtitle: channel.description
+      }))
+
+      setResults([...channelResults, ...messageResults])
+    } catch (error) {
+      console.error('Error searching:', error)
+      setResults([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Debounce the search to avoid too many requests
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      performSearch(query)
+    }, 300),
+    []
+  )
+
+  const search = (query: string) => {
+    setIsSearching(true)
+    if (!query.trim()) {
+      setResults([])
+      setIsSearching(false)
+      return
+    }
+    debouncedSearch(query)
+  }
 
   return {
-    searchQuery,
-    setSearchQuery,
-    searchResults,
-    setSearchResults
-  };
+    search,
+    results,
+    isSearching
+  }
 } 

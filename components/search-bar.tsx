@@ -1,133 +1,78 @@
 'use client'
 
 import { useState } from 'react'
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { teamData } from "@/lib/mock-data"
-import { ActiveChat } from "@/app/page"
-import { Search } from 'lucide-react'
-import { useMessages } from "@/hooks/useMessages"
-
-interface SearchResult {
-  type: 'channel' | 'directMessage'
-  id: number
-  name: string
-  threadId?: number
-  messagePreview?: string
-  fileName?: string
-}
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { useSearch } from '@/hooks/useSearch'
+import { ActiveChat } from '@/app/teams/[teamId]/page'
+import { Hash, MessageSquare, Loader2 } from 'lucide-react'
 
 interface SearchBarProps {
-  activeTeam: number
+  teamId: string
   setActiveChat: (chat: ActiveChat) => void
 }
 
-export function SearchBar({ activeTeam, setActiveChat }: SearchBarProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-
-  // Get messages for all channels in the current team
-  const channelMessages = teamData[activeTeam].channels.map(channel => {
-    const { messages } = useMessages({ channelId: String(channel.id) });
-    return { channelId: channel.id, messages };
-  });
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    if (query.trim() === '') {
-      setSearchResults([])
-      return
-    }
-
-    const currentTeamData = teamData[activeTeam]
-    const results: SearchResult[] = []
-
-    // Search channels
-    currentTeamData.channels.forEach(channel => {
-      if (channel.name.toLowerCase().includes(query.toLowerCase())) {
-        results.push({ type: 'channel', id: channel.id, name: channel.name })
-      }
-
-      // Search messages within the channel
-      const channelData = channelMessages.find(cm => cm.channelId === channel.id);
-      if (channelData) {
-        channelData.messages.forEach(message => {
-          if (message.content.toLowerCase().includes(query.toLowerCase())) {
-            results.push({
-              type: 'channel',
-              id: channel.id,
-              name: channel.name,
-              threadId: message.parentId ? Number(message.parentId) : undefined,
-              messagePreview: message.content
-            })
-          }
-          if (message.file && message.file.name.toLowerCase().includes(query.toLowerCase())) {
-            results.push({
-              type: 'channel',
-              id: channel.id,
-              name: channel.name,
-              threadId: message.parentId ? Number(message.parentId) : undefined,
-              fileName: message.file.name
-            })
-          }
-        })
-      }
-    })
-
-    // Search direct messages
-    currentTeamData.directMessages.forEach(dm => {
-      if (dm.name.toLowerCase().includes(query.toLowerCase())) {
-        results.push({ type: 'directMessage', id: dm.id, name: dm.name })
-      }
-    })
-
-    setSearchResults(results)
-  }
+export function SearchBar({ teamId, setActiveChat }: SearchBarProps) {
+  const { search, results, isSearching } = useSearch()
+  const [query, setQuery] = useState('')
 
   return (
-    <div className="w-full bg-gray-900 p-4">
-      <div className="relative">
-        <Input
-          type="text"
-          placeholder="Search channels, messages, and files..."
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="w-full pl-10 bg-gray-800 text-white placeholder-gray-400 border-gray-700"
-        />
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-      </div>
-      {searchResults.length > 0 && (
-        <ScrollArea className="mt-2 max-h-96 bg-gray-800 rounded-md shadow-md">
-          {searchResults.map((result, index) => (
-            <div
-              key={index}
-              className="p-4 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0"
-              onClick={() => {
-                setActiveChat({ type: result.type, id: result.id, name: result.name })
-                setSearchQuery('')
-                setSearchResults([])
-              }}
-            >
-              <div className="font-semibold text-white">
-                {result.type === 'channel' ? '#' : ''}{result.name}
-                {result.threadId && ` > Thread ${result.threadId}`}
+    <div className="border-b bg-gray-900 relative">
+      <Command className="border-0 rounded-none bg-gray-900">
+        <div className="bg-gray-900 cmdk-input-wrapper">
+          <CommandInput 
+            placeholder="Search messages and channels..." 
+            onValueChange={(value) => {
+              setQuery(value)
+              search(value)
+            }}
+            value={query}
+            className="border-0 focus:ring-0 bg-gray-900 text-gray-300 placeholder:text-gray-500"
+          />
+        </div>
+        {query.trim().length > 0 && (
+          <CommandList className="bg-gray-900 text-gray-300 absolute w-full max-h-96 z-50 top-full border border-gray-800 shadow-lg">
+            {isSearching ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                <span className="ml-2 text-sm text-gray-500">Searching...</span>
               </div>
-              {result.messagePreview && (
-                <div className="text-sm text-gray-400 mt-1">
-                  {result.messagePreview.length > 100
-                    ? `${result.messagePreview.substring(0, 100)}...`
-                    : result.messagePreview}
-                </div>
-              )}
-              {result.fileName && (
-                <div className="text-sm text-gray-400 mt-1">
-                  File: {result.fileName}
-                </div>
-              )}
-            </div>
-          ))}
-        </ScrollArea>
-      )}
+            ) : results.length === 0 ? (
+              <CommandEmpty className="py-6 text-center text-sm text-gray-500">
+                No results found.
+              </CommandEmpty>
+            ) : (
+              <CommandGroup>
+                {results.map((result) => (
+                  <CommandItem
+                    key={result.id}
+                    onSelect={() => {
+                      setActiveChat({
+                        type: result.type === 'channel' ? 'channel' : 'directMessage',
+                        id: result.id,
+                        name: result.title
+                      })
+                      setQuery('')
+                    }}
+                    className="hover:bg-gray-800 text-gray-300"
+                  >
+                    {result.type === 'channel' ? (
+                      <Hash className="mr-2 h-4 w-4 text-gray-400" />
+                    ) : (
+                      <MessageSquare className="mr-2 h-4 w-4 text-gray-400" />
+                    )}
+                    <div>
+                      <div className="font-medium text-gray-300">{result.title}</div>
+                      {result.subtitle && (
+                        <div className="text-xs text-gray-500">{result.subtitle}</div>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        )}
+      </Command>
     </div>
   )
 }

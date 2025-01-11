@@ -9,6 +9,8 @@ import { ActiveChat } from "@/app/page"
 import { FileAttachment } from "@/components/file-attachment"
 import { EmojiReactions } from "@/components/emoji-reactions"
 import { useMessages } from "@/hooks/useMessages"
+import { Message } from "@/types/chat"
+import { useAuth } from "@/contexts/auth-context"
 import Image from 'next/image'
 
 interface ChatAreaProps {
@@ -27,6 +29,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const { user } = useAuth()
 
   const {
     messages,
@@ -37,7 +40,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
     removeReaction
   } = useMessages({
     channelId: String(activeChat.id),
-    parentId: activeThread
+    parentId: activeThread || undefined
   })
 
   useEffect(() => {
@@ -56,9 +59,14 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const filteredMessages = activeThread
     ? messages.filter(message => 
         message.id === activeThread || // Show the parent message
-        message.parentId === activeThread // Show direct replies to this message
+        message.parent_id === activeThread // Show direct replies to this message
       )
-    : messages.filter(message => !message.parentId) // Only show parent messages in main view
+    : messages.filter(message => !message.parent_id) // Only show parent messages in main view
+
+  const getReplyCount = (messageId: string) => {
+    const message = messages.find(m => m.id === messageId)
+    return message?.reply_count || 0
+  }
 
   const handleSendMessage = async () => {
     if (newMessage.trim() === '' && !attachedFile) return
@@ -95,11 +103,13 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   }
 
   const handleReaction = async (messageId: string, emoji: string) => {
+    if (!user) return
+
     try {
       const message = messages.find(m => m.id === messageId)
       if (!message) return
 
-      const existingReaction = message.reactions.find(r => r.emoji === emoji && r.userId === '1')
+      const existingReaction = message.reactions?.find(r => r.emoji === emoji && r.user_id === user.id)
       if (existingReaction) {
         await removeReaction(messageId, emoji)
       } else {
@@ -113,10 +123,6 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
 
   const handleReply = (messageId: string) => {
     setActiveThread(messageId)
-  }
-
-  const getReplyCount = (messageId: string) => {
-    return messages.filter(m => m.parentId === messageId).length
   }
 
   if (isLoading) {
@@ -149,7 +155,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
                 <div className="flex items-center">
                   <span className="font-bold">{message.user.name}</span>
                   <span className="ml-2 text-sm text-gray-500">
-                    {message.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="mt-1">{message.content}</div>
@@ -158,18 +164,18 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
                 )}
                 <div className="mt-2 flex items-center gap-2">
                   <EmojiReactions 
-                    reactions={message.reactions.reduce((acc, r) => {
+                    reactions={(message.reactions || []).reduce((acc, r) => {
                       const existing = acc.find(a => a.emoji === r.emoji)
                       if (existing) {
                         existing.count++
-                        existing.users.push(r.userId)
+                        existing.users.push(r.user_id)
                       } else {
-                        acc.push({ emoji: r.emoji, count: 1, users: [r.userId] })
+                        acc.push({ emoji: r.emoji, count: 1, users: [r.user_id] })
                       }
                       return acc
                     }, [] as Array<{ emoji: string, count: number, users: string[] }>)} 
                     onReact={(emoji) => handleReaction(message.id, emoji)}
-                    currentUser="1"  // TODO: Get from auth
+                    currentUser={user?.id || ''}
                   />
                   {!activeThread && (
                     <Button 
