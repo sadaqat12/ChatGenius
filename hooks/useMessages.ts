@@ -49,15 +49,19 @@ interface MessageResponse {
   channel_id: string;
   sender_id?: string;
   user_id?: string;
-  parent_id?: string | null;
-  file?: any;
+  parent_id: string | null;
+  file: {
+    name: string;
+    type: string;
+    url: string;
+  } | null;
   created_at: string;
   updated_at: string;
   sender: {
     id: string;
     email: string;
     name: string;
-    avatar_url?: string;
+    avatar_url: string | null;
   };
   reactions?: Array<{
     id: string;
@@ -284,7 +288,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
           name,
           avatar_url
         ),
-        ${isDM ? 'reactions:direct_message_reactions' : 'reactions'}(
+        ${isDM ? 'reactions:direct_message_reactions' : 'reactions:message_reactions'}(
           id,
           emoji,
           user_id
@@ -309,29 +313,67 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
+      if (!data) return;
 
-      // Transform the data to match our Message type
-      const transformedMessages = ((data || []) as unknown as MessageResponse[]).map(msg => ({
-        id: msg.id,
-        content: msg.content,
-        channelId: msg.channel_id,
-        userId: (isDM ? msg.sender_id : msg.user_id) || '',
-        parentId: msg.parent_id || null,
-        file: msg.file,
-        createdAt: msg.created_at,
-        updatedAt: msg.updated_at,
-        user: {
-          id: msg.sender.id,
-          name: msg.sender.name || msg.sender.email,
-          avatar: msg.sender.avatar_url
-        },
-        reactions: msg.reactions?.map((r: { id: string; emoji: string; user_id: string }) => ({
-          id: r.id,
-          emoji: r.emoji,
-          userId: r.user_id
-        })) || [],
-        replyCount: isDM ? 0 : (msg.replies?.length || 0)
-      }));
+      // Type assertion for the database response
+      const messages = data as unknown as Array<{
+        id: string;
+        content: string;
+        channel_id: string;
+        sender_id?: string;
+        user_id?: string;
+        parent_id: string | null;
+        file: {
+          name: string;
+          type: string;
+          size: number;
+          url: string;
+          path?: string;
+        } | null;
+        created_at: string;
+        updated_at: string;
+        sender: {
+          id: string;
+          email: string;
+          name: string;
+          avatar_url: string | null;
+        };
+        reactions?: Array<{
+          id: string;
+          emoji: string;
+          user_id: string;
+        }>;
+        replies?: Array<{
+          id: string;
+        }>;
+      }>;
+
+      const transformedMessages: Message[] = messages.map(msg => {
+        const userId = isDM ? msg.sender_id : msg.user_id;
+        if (!userId) throw new Error('Message is missing user ID');
+
+        return {
+          id: msg.id,
+          content: msg.content,
+          channelId: msg.channel_id,
+          userId,
+          parentId: msg.parent_id || null,
+          file: msg.file,
+          createdAt: msg.created_at,
+          updatedAt: msg.updated_at,
+          user: {
+            id: msg.sender.id,
+            name: msg.sender.name || msg.sender.email,
+            avatar: msg.sender.avatar_url || undefined
+          },
+          reactions: msg.reactions?.map((r) => ({
+            id: r.id,
+            emoji: r.emoji,
+            userId: r.user_id
+          })) || [],
+          replyCount: msg.replies?.length || 0
+        };
+      });
 
       // Sort messages so parent appears first in thread view
       if (parentId) {
@@ -526,8 +568,8 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
           return msg;
         }));
       }
-    } catch (error) {
-      console.error('Error toggling reaction:', error);
+    } catch (err) {
+      console.error('Error handling reaction:', err);
     }
   };
 
