@@ -17,13 +17,16 @@ export async function POST(request: Request) {
       }
     )
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+
     // Send invite email
     const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(email, {
       data: {
         name,
         invitationId,
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback`,
     })
 
     if (inviteError) throw inviteError
