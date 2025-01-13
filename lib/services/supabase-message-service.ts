@@ -63,12 +63,11 @@ export class SupabaseMessageService implements MessageService {
     return data.map(msg => ({
       id: msg.id,
       content: msg.content,
-      channel_id: msg.channel_id,
-      user_id: msg.user_id,
-      parent_id: msg.parent_id,
+      channelId: msg.channel_id,
+      userId: msg.user_id,
+      parentId: msg.parent_id,
       file: msg.file,
-      created_at: msg.created_at,
-      updated_at: msg.updated_at,
+      createdAt: new Date(msg.created_at),
       user: {
         id: msg.user.id,
         name: msg.user.user_profiles[0]?.name || msg.user.email,
@@ -78,7 +77,8 @@ export class SupabaseMessageService implements MessageService {
         id: r.id,
         emoji: r.emoji,
         userId: r.user_id
-      })) || []
+      })) || [],
+      reply_count: 0
     }));
   }
 
@@ -105,8 +105,8 @@ export class SupabaseMessageService implements MessageService {
       .insert({
         content: message.content,
         user_id: session.user.id,
-        channel_id: message.channel_id,
-        parent_id: message.parent_id,
+        channel_id: message.channelId,
+        parent_id: message.parentId,
         file: fileData
       })
       .select(`
@@ -128,18 +128,18 @@ export class SupabaseMessageService implements MessageService {
     return {
       id: data.id,
       content: data.content,
-      channel_id: data.channel_id,
-      user_id: data.user_id,
-      parent_id: data.parent_id,
+      channelId: data.channel_id,
+      userId: data.user_id,
+      parentId: data.parent_id,
       file: data.file,
-      created_at: data.created_at,
-      updated_at: data.updated_at,
+      createdAt: new Date(data.created_at),
       user: {
         id: data.user.id,
         name: data.user.user_profiles[0]?.name || data.user.email,
         avatar: data.user.user_profiles[0]?.avatar_url
       },
-      reactions: []
+      reactions: [],
+      reply_count: 0
     };
   }
 

@@ -36,6 +36,17 @@ interface ParticipantResponse {
   };
 }
 
+interface RawParticipantResponse {
+  userId: string;
+  user: {
+    id: string;
+    email: string;
+    userProfiles: Array<{
+      name: string;
+    }>;
+  };
+}
+
 interface ChatAreaProps {
   activeChat: {
     id: string;
@@ -89,11 +100,11 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
         const { data: participants, error } = await supabase
           .from('direct_message_participants')
           .select(`
-            user_id,
+            userId:user_id,
             user:users!inner (
               id,
               email,
-              user_profiles!inner (
+              userProfiles:user_profiles (
                 name
               )
             )
@@ -101,11 +112,13 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
           .eq('channel_id', activeChat.id);
 
         if (!error && participants) {
-          const otherParticipant = (participants as ParticipantResponse[]).find(
-            p => p.user_id !== user?.id
+          const typedParticipants = participants as unknown as RawParticipantResponse[];
+          const otherParticipant = typedParticipants.find(
+            p => p.userId !== user?.id
           );
+          
           if (otherParticipant?.user) {
-            const name = otherParticipant.user.user_profiles[0]?.name || 
+            const name = otherParticipant.user.userProfiles[0]?.name || 
                         otherParticipant.user.email || 
                         'Unknown User';
             setRecipientName(name);
@@ -121,13 +134,13 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const filteredMessages = activeThread
     ? messages.filter(message => 
         message.id === activeThread || // Show the parent message
-        message.parent_id === activeThread // Show direct replies to this message
+        message.parentId === activeThread // Show direct replies to this message
       )
-    : messages.filter(message => !message.parent_id) // Only show parent messages in main view
+    : messages.filter(message => !message.parentId) // Only show parent messages in main view
 
   const getReplyCount = (messageId: string) => {
     const message = messages.find(m => m.id === messageId)
-    return message?.reply_count || 0
+    return message?.replyCount || 0
   }
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -181,7 +194,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       const message = messages.find(m => m.id === messageId)
       if (!message) return
 
-      const existingReaction = message.reactions?.find(r => r.emoji === emoji && r.user_id === user.id)
+      const existingReaction = message.reactions?.find(r => r.emoji === emoji && r.userId === user.id)
       if (existingReaction) {
         await removeReaction(messageId, emoji)
       } else {
@@ -227,7 +240,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
                 <div className="flex items-center">
                   <span className="font-bold">{message.user.name}</span>
                   <span className="ml-2 text-sm text-gray-500">
-                    {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="mt-1">{message.content}</div>
@@ -240,9 +253,9 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
                       const existing = acc.find(a => a.emoji === r.emoji)
                       if (existing) {
                         existing.count++
-                        existing.users.push(r.user_id)
+                        existing.users.push(r.userId)
                       } else {
-                        acc.push({ emoji: r.emoji, count: 1, users: [r.user_id] })
+                        acc.push({ emoji: r.emoji, count: 1, users: [r.userId] })
                       }
                       return acc
                     }, [] as Array<{ emoji: string, count: number, users: string[] }>)} 
