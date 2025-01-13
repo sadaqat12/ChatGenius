@@ -13,6 +13,7 @@ import { Message } from "@/types/chat"
 import { useAuth } from "@/contexts/auth-context"
 import Image from 'next/image'
 import { supabase } from "@/lib/supabase"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 
 interface DirectMessageParticipant {
   user_id: string;
@@ -53,6 +54,14 @@ interface ChatAreaProps {
     name?: string;
     type: 'channel' | 'directMessage';
   }
+}
+
+interface FileAttachmentType {
+  name: string
+  type: string
+  size: number
+  url: string
+  path?: string
 }
 
 interface AttachedFile {
@@ -134,13 +143,13 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const filteredMessages = activeThread
     ? messages.filter(message => 
         message.id === activeThread || // Show the parent message
-        message.parentId === activeThread // Show direct replies to this message
+        message.parent_id === activeThread // Show direct replies to this message
       )
-    : messages.filter(message => !message.parentId) // Only show parent messages in main view
+    : messages.filter(message => !message.parent_id) // Only show parent messages in main view
 
   const getReplyCount = (messageId: string) => {
     const message = messages.find(m => m.id === messageId)
-    return message?.replyCount || 0
+    return message?.thread_count || 0
   }
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -166,7 +175,6 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       scrollToBottom()
     } catch (err) {
       console.error('Failed to send message:', err)
-      // TODO: Show error toast
     }
   }
 
@@ -194,7 +202,9 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       const message = messages.find(m => m.id === messageId)
       if (!message) return
 
-      const existingReaction = message.reactions?.find(r => r.emoji === emoji && r.userId === user.id)
+      const existingReaction = message.reactions?.find(r => 
+        r.emoji === emoji && r.users.some(u => u.id === user.id)
+      )
       if (existingReaction) {
         await removeReaction(messageId, emoji)
       } else {
@@ -202,7 +212,6 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       }
     } catch (err) {
       console.error('Failed to handle reaction:', err)
-      // TODO: Show error toast
     }
   }
 
@@ -234,55 +243,62 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       </div>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         {filteredMessages.map((message) => (
-          <div key={message.id} className="mb-4 group">
-            <div className="flex items-start gap-x-3">
-              <div className="flex-1">
-                <div className="flex items-center">
-                  <span className="font-bold">{message.user.name}</span>
-                  <span className="ml-2 text-sm text-gray-500">
-                    {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <div className="mt-1">{message.content}</div>
+          <div 
+            key={message.id} 
+            className="group relative flex items-start space-x-3 py-2 px-4 hover:bg-gray-50"
+          >
+            <div className="relative">
+              <Avatar>
+                <AvatarImage src={message.user.avatar_url} alt={message.user.name} />
+                <AvatarFallback>{message.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              {message.user.status && (
+                <div 
+                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                    message.user.status === 'online' ? 'bg-green-500' :
+                    message.user.status === 'away' ? 'bg-yellow-500' :
+                    message.user.status === 'busy' ? 'bg-red-500' :
+                    'bg-gray-500'
+                  }`} 
+                />
+              )}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div className="flex items-center space-x-2">
+                <span className="font-medium text-gray-900">{message.user.name}</span>
+                <span className="text-xs text-gray-500">
+                  {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="mt-0.5 text-sm text-gray-800">
+                {message.content}
                 {message.file && (
                   <FileAttachment file={message.file} />
                 )}
-                <div className="mt-2 flex items-center gap-2">
-                  <EmojiReactions 
-                    reactions={(message.reactions || []).reduce((acc, r) => {
-                      const existing = acc.find(a => a.emoji === r.emoji)
-                      if (existing) {
-                        existing.count++
-                        existing.users.push(r.userId)
-                      } else {
-                        acc.push({ emoji: r.emoji, count: 1, users: [r.userId] })
-                      }
-                      return acc
-                    }, [] as Array<{ emoji: string, count: number, users: string[] }>)} 
-                    onReact={(emoji) => handleReaction(message.id, emoji)}
-                    currentUser={user?.id || ''}
-                  />
-                  {!activeThread && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <EmojiReactions 
+                  messageId={message.id} 
+                  reactions={message.reactions} 
+                  show={true}
+                />
+                {!activeThread && !message.parent_id && (
+                  <div className="flex items-center gap-2">
+                    {message.thread_count > 0 && (
+                      <span className="text-xs text-gray-500">
+                        {message.thread_count} {message.thread_count === 1 ? 'reply' : 'replies'}
+                      </span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => handleReply(message.id)}
-                      className="opacity-0 group-hover:opacity-100"
                     >
                       <Reply className="h-4 w-4 mr-1" />
                       Reply
                     </Button>
-                  )}
-                </div>
-                {!activeThread && getReplyCount(message.id) > 0 && (
-                  <Button 
-                    variant="link" 
-                    size="sm" 
-                    className="mt-1 p-0 h-auto text-blue-500" 
-                    onClick={() => setActiveThread(message.id)}
-                  >
-                    View {getReplyCount(message.id)} {getReplyCount(message.id) === 1 ? 'reply' : 'replies'}
-                  </Button>
+                  </div>
                 )}
               </div>
             </div>
@@ -292,31 +308,20 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       </ScrollArea>
       <div className="p-4 border-t">
         {attachedFile && (
-          <div className="mb-2 p-2 bg-gray-100 rounded-md flex items-center justify-between">
-            {attachedFile.file.type.startsWith('image/') ? (
-              <Image
-                src={attachedFile.preview}
-                alt="Attached image"
-                width={50}
-                height={50}
-                className="rounded-md object-cover"
-              />
-            ) : (
-              <div className="text-sm">{attachedFile.file.name}</div>
-            )}
+          <div className="mb-2 flex items-center gap-2 bg-gray-800 p-2 rounded">
+            <div className="flex-1 truncate">{attachedFile.file.name}</div>
             <Button variant="ghost" size="sm" onClick={removeAttachedFile}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <Input 
+        <div className="flex gap-2">
+          <Input
             ref={inputRef}
-            className="flex-1" 
-            placeholder={activeThread ? "Reply in thread..." : "Type a message..."} 
+            placeholder="Type a message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
                 handleSendMessage()
@@ -329,14 +334,10 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
             className="hidden"
             onChange={handleFileUpload}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Paperclip className="h-4 w-4" />
           </Button>
-          <Button type="button" onClick={handleSendMessage}>Send</Button>
+          <Button onClick={handleSendMessage}>Send</Button>
         </div>
       </div>
     </div>

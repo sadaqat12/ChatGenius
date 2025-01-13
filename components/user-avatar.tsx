@@ -1,22 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { BellOff, BellRing, LogOut, Settings, User } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/auth-context'
+import { useToast } from "@/components/ui/use-toast"
 
 type Status = 'online' | 'away' | 'busy' | 'offline';
 
 interface UserAvatarProps {
   user: {
+    id: string;
     name: string;
-    avatar: string;
-    status: Status;
+    avatar_url?: string;
+    status?: Status;
+    showStatus?: boolean;
   };
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export function UserAvatar({ user }: UserAvatarProps) {
-  const [status, setStatus] = useState<Status>(user.status)
-  const [isMuted, setIsMuted] = useState(false)
+export function UserAvatar({ user, size = 'md' }: UserAvatarProps) {
+  const [status, setStatus] = useState<Status>(user.status || 'online')
+  const { user: currentUser } = useAuth()
+  const { toast } = useToast()
+  const isCurrentUser = currentUser?.id === user.id
+
+  useEffect(() => {
+    if (user.status) {
+      setStatus(user.status)
+    }
+  }, [user.status])
 
   const statusColors = {
     online: 'bg-green-500',
@@ -25,36 +39,65 @@ export function UserAvatar({ user }: UserAvatarProps) {
     offline: 'bg-gray-500'
   };
 
-  const handleStatusChange = (newStatus: Status) => {
-    setStatus(newStatus)
-    // Here you would typically update the status on the server
+  const handleStatusChange = async (newStatus: Status) => {
+    if (!isCurrentUser) return
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({ 
+          status: newStatus,
+          status_updated_at: new Date().toISOString()
+        })
+        .eq('user_id', currentUser.id)
+
+      if (error) throw error
+      
+      setStatus(newStatus)
+    } catch (error) {
+      console.error('Error updating status:', error)
+      toast({
+        title: "Error updating status",
+        description: "Please try again later",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleMuteToggle = () => {
-    setIsMuted(!isMuted)
-    // Here you would typically update the mute setting on the server
+  const avatarSizes = {
+    sm: 'h-6 w-6',
+    md: 'h-8 w-8',
+    lg: 'h-10 w-10'
   }
 
-  const handleSettings = () => {
-    // Implement navigation to settings page
-    console.log('Navigate to settings')
+  const statusSizes = {
+    sm: 'h-2 w-2',
+    md: 'h-3 w-3',
+    lg: 'h-3.5 w-3.5'
   }
 
-  const handleLogout = () => {
-    // Implement logout functionality
-    console.log('Logout')
+  const content = (
+    <div className="relative cursor-pointer">
+      <Avatar className={avatarSizes[size]}>
+        <AvatarImage src={user.avatar_url} alt={user.name} />
+        <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+      </Avatar>
+      {user.showStatus !== false && (
+        <span 
+          className={`absolute bottom-0 right-0 block ${statusSizes[size]} rounded-full ring-2 ring-white ${statusColors[status]}`} 
+        />
+      )}
+    </div>
+  )
+
+  if (!isCurrentUser) {
+    return content
   }
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <div className="relative cursor-pointer">
-          <Avatar>
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
-          </Avatar>
-          <span className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${statusColors[status]}`} />
-        </div>
+        {content}
       </PopoverTrigger>
       <PopoverContent className="w-56 bg-gray-800 text-white border-gray-700">
         <div className="space-y-2">
@@ -94,35 +137,9 @@ export function UserAvatar({ user }: UserAvatarProps) {
               Offline
             </Button>
           </div>
-          <hr className="border-gray-700" />
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-left font-normal" 
-            onClick={handleMuteToggle}
-          >
-            {isMuted ? <BellOff className="mr-2 h-4 w-4" /> : <BellRing className="mr-2 h-4 w-4" />}
-            {isMuted ? 'Unmute notifications' : 'Mute notifications'}
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-left font-normal" 
-            onClick={handleSettings}
-          >
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Button>
-          <hr className="border-gray-700" />
-          <Button 
-            variant="ghost" 
-            className="w-full justify-start text-left font-normal text-red-400" 
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Log out
-          </Button>
         </div>
       </PopoverContent>
     </Popover>
-  );
+  )
 }
 

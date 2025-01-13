@@ -52,8 +52,11 @@ export function FileAttachment({ file }: FileAttachmentProps) {
     }
   }
 
+  if (!file) return null
+
   // Default to 'application/octet-stream' if type is missing
   const isImage = (file.type || 'application/octet-stream').startsWith('image/')
+  const fileSize = (file.size / 1024).toFixed(1) // Convert to KB
 
   if (isImage && !imageError) {
     return (
@@ -66,6 +69,9 @@ export function FileAttachment({ file }: FileAttachmentProps) {
           onError={handleError}
           unoptimized // Skip Next.js image optimization for Supabase URLs
         />
+        <div className="absolute bottom-0 left-0 right-0 text-xs text-gray-400 bg-white/75 px-2 py-1">
+          {file.name} ({fileSize} KB)
+        </div>
       </div>
     )
   }
@@ -96,7 +102,7 @@ export function FileAttachment({ file }: FileAttachmentProps) {
           d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
-      <span className="text-sm text-gray-700">{file.name}</span>
+      <span className="text-sm text-gray-700">{file.name} ({fileSize} KB)</span>
     </a>
   )
 }
