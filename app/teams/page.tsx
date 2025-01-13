@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
-import { supabase } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { ChatGeniusHeader } from '@/components/chat-genius-header'
 import { Settings } from 'lucide-react'
 import {

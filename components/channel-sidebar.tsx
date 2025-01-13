@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase'
 import { Channel } from '@/types/chat'
 import { useAuth } from '@/contexts/auth-context'
 import { useDirectMessages } from '@/hooks/useDirectMessages'
+import { useToast } from "@/components/ui/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface ChannelSidebarProps {
   teamId: string
@@ -18,11 +20,57 @@ interface ChannelSidebarProps {
   onChannelSelect: (channelId: string, type: 'channel' | 'dm') => void
 }
 
+interface UserProfile {
+  name: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+  user_profiles: UserProfile[];
+}
+
+interface TeamMemberResponse {
+  user_id: string;
+  role: string;
+  users: User;
+}
+
+interface DirectMessageUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+  user_profiles: UserProfile[];
+}
+
+interface DirectMessageParticipant {
+  user_id: string;
+  user: DirectMessageUser;
+}
+
+interface RawTeamMember {
+  user_id: string;
+  role: string;
+  users: {
+    id: string;
+    email: string;
+    user_profiles: Array<{
+      name: string;
+    }>;
+  };
+}
+
 export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: ChannelSidebarProps) {
   const [channels, setChannels] = useState<Channel[]>([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [memberButtons, setMemberButtons] = useState<Array<{ label: string; onClick: () => void }>>([])
   const { user } = useAuth()
   const router = useRouter()
   const { channels: dmChannels, createChannel: createDMChannel } = useDirectMessages()
+  const { toast } = useToast()
 
   useEffect(() => {
     if (teamId) {
@@ -100,65 +148,183 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
     }
   }
 
-  const startDirectMessage = async () => {
+  const createDirectMessage = async (otherUserId: string) => {
+    if (!user?.id) return;
+
     try {
-      // Fetch users in the team
-      const { data: teamMembers, error } = await supabase
-        .from('team_members')
+      // First check if user exists in auth.users
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', otherUserId)
+        .single();
+
+      if (userError || !userData) {
+        toast({
+          title: 'Error',
+          description: 'Selected user is not available for direct messaging',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check if DM channel already exists between these users
+      const { data: existingChannels, error: channelError } = await supabase
+        .from('direct_message_channels')
         .select(`
-          user_id,
-          user:user_id(
-            email,
-            user_profiles(name)
+          id,
+          participants:direct_message_participants!inner (
+            user_id,
+            user:users!inner (
+              id,
+              email,
+              user_profiles (
+                name
+              )
+            )
           )
         `)
-        .eq('team_id', teamId)
-        .neq('user_id', user?.id)
+        .eq('participants.user_id', user.id);
 
-      if (error) throw error
-
-      interface TeamMember {
-        user_id: string;
-        user: [{
-          email: string;
-          user_profiles: Array<{
-            name: string;
-          }>;
-        }];
+      if (channelError) {
+        console.error('Error checking existing channels:', channelError);
+        toast({
+          title: 'Error',
+          description: 'Failed to check existing channels',
+          variant: 'destructive'
+        });
+        return;
       }
 
-      // Transform the data to match our expected types
-      const formattedMembers = (teamMembers as TeamMember[]).map(member => ({
-        user_id: member.user_id,
-        user: {
-          email: member.user[0].email,
-          user_profiles: member.user[0].user_profiles
-        }
-      }))
+      // Find a channel where both users are participants
+      const existingChannel = existingChannels?.find(channel => {
+        const participantIds = channel.participants.map(p => p.user_id);
+        return participantIds.includes(otherUserId);
+      });
 
-      // For now, just show a simple prompt. In a real app, this would be a proper UI dialog
-      const userList = formattedMembers.map(member => 
-        `${member.user.user_profiles[0]?.name || member.user.email} (${member.user_id})`
-      ).join('\n')
-      
-      const selectedUserId = prompt(
-        `Enter the user ID to start a conversation with:\n\n${userList}`
-      )
-
-      if (selectedUserId) {
-        const channelId = await createDMChannel(selectedUserId)
-        if (channelId) {
-          onChannelSelect(channelId, 'dm')
-        }
+      if (existingChannel) {
+        onChannelSelect(existingChannel.id, 'dm');
+        setIsDialogOpen(false);
+        return;
       }
+
+      // Create new DM channel
+      const { data: newChannel, error: createError } = await supabase
+        .from('direct_message_channels')
+        .insert({})
+        .select()
+        .single();
+
+      if (createError || !newChannel) {
+        console.error('Error creating channel:', createError);
+        toast({
+          title: 'Error',
+          description: 'Failed to create direct message channel',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Add participants
+      const { error: participantsError } = await supabase
+        .from('direct_message_participants')
+        .insert([
+          { channel_id: newChannel.id, user_id: user.id },
+          { channel_id: newChannel.id, user_id: otherUserId }
+        ]);
+
+      if (participantsError) {
+        console.error('Error adding participants:', participantsError);
+        toast({
+          title: 'Error',
+          description: 'Failed to add participants to channel',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      onChannelSelect(newChannel.id, 'dm');
+      setIsDialogOpen(false);
+
     } catch (error) {
-      console.error('Error starting direct message:', error)
+      console.error('Error in createDirectMessage:', error);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred',
+        variant: 'destructive'
+      });
     }
-  }
+  };
+
+  const startDirectMessage = async () => {
+    if (!user?.id) return;
+
+    console.log('Fetching team members for team:', teamId);
+    
+    // First get all team members
+    const { data: teamMembers, error } = await supabase
+      .from('team_members')
+      .select(`
+        user_id,
+        role,
+        users:users!team_members_user_id_fkey (
+          id,
+          email,
+          user_profiles (
+            name
+          )
+        )
+      `)
+      .eq('team_id', teamId)
+      .neq('user_id', user?.id);
+
+    console.log('Team members response:', teamMembers);
+    
+    if (error) {
+      console.error('Error fetching team members:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load team members',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!teamMembers || teamMembers.length === 0) {
+      toast({
+        title: 'No team members found',
+        description: 'No team members found to message'
+      });
+      return;
+    }
+
+    // Filter out members that don't exist in auth.users
+    const validMembers = (teamMembers as unknown as RawTeamMember[]).filter(
+      member => member && member.users && typeof member.users.id === 'string'
+    );
+
+    if (validMembers.length === 0) {
+      toast({
+        title: 'No valid members found',
+        description: 'No team members are available for direct messaging'
+      });
+      return;
+    }
+
+    const buttons = validMembers.map((member) => ({
+      label: member.users.user_profiles?.[0]?.name || member.users.email || 'Unknown User',
+      onClick: () => createDirectMessage(member.user_id),
+    }));
+
+    setMemberButtons(buttons);
+    setIsDialogOpen(true);
+  };
 
   const getOtherParticipant = (channel: typeof dmChannels[0]) => {
-    const otherParticipant = channel.participants.find(p => p.user_id !== user?.id)
-    return otherParticipant?.user.user_profiles[0]?.name || otherParticipant?.user.email || 'Unknown User'
+    const otherParticipant = channel.participants.find(p => p.user_id !== user?.id);
+    if (!otherParticipant?.user) return 'Unknown User';
+    
+    return otherParticipant.user.name || otherParticipant.user.email || 'Unknown User';
   }
 
   return (
@@ -239,6 +405,26 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
           ))}
         </div>
       </ScrollArea>
+      
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Team Member</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {memberButtons.map((button, index) => (
+              <Button
+                key={index}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={button.onClick}
+              >
+                {button.label}
+              </Button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

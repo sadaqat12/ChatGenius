@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Message } from '@/types/chat'
 import { useAuth } from '@/contexts/auth-context'
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import { RealtimePostgresChangesPayload, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload, RealtimePostgresDeletePayload } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
+
+type MessageRow = Database['public']['Tables']['messages']['Row']
+type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
 
 interface UseMessagesOptions {
   channelId: string
@@ -18,6 +21,54 @@ interface UseMessagesReturn {
   sendMessage: (content: string, file?: File) => Promise<void>
   addReaction: (messageId: string, emoji: string) => Promise<void>
   removeReaction: (messageId: string, emoji: string) => Promise<void>
+}
+
+interface Message {
+  id: string;
+  content: string;
+  channel_id: string;
+  user_id: string;
+  parent_id?: string | null;
+  file?: any;
+  created_at: string;
+  updated_at: string;
+  user: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  reactions: Array<{
+    id: string;
+    emoji: string;
+    user_id: string;
+  }>;
+  reply_count: number;
+}
+
+interface MessageResponse {
+  id: string;
+  content: string;
+  channel_id: string;
+  sender_id?: string;
+  user_id?: string;
+  parent_id?: string | null;
+  file?: any;
+  created_at: string;
+  updated_at: string;
+  sender: {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url?: string;
+  };
+  reactions?: Array<{
+    id: string;
+    emoji: string;
+    user_id: string;
+  }>;
+  replies?: Array<{
+    id: string;
+  }>;
 }
 
 export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMessagesReturn {
@@ -34,24 +85,26 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
   }, [channelId, parentId])
 
   useEffect(() => {
-    // Initial fetch of messages
+    setIsLoading(true)
+    setError(null)
+
+    // Fetch initial messages
     fetchMessages()
 
-    // Subscribe to new messages and reactions
+    // Subscribe to new messages
     const channel = supabase
-      .channel(`channel:${channelId}:${parentId || 'main'}`)
-      .on<{ [key: string]: any }>(
+      .channel(`messages:${channelId}`)
+      .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'messages',
-          filter: parentId 
-            ? `channel_id=eq.${channelId} and (id=eq.${parentId} or parent_id=eq.${parentId})`
-            : `channel_id=eq.${channelId} and parent_id=is.null`
+          filter: `channel_id=eq.${channelId}`
         },
-        async (payload) => {
+        async (payload: RealtimePostgresChangesPayload<MessageRow>) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newMessage = (payload as RealtimePostgresInsertPayload<MessageRow> | RealtimePostgresUpdatePayload<MessageRow>).new
             // Fetch the complete message data including user and reactions
             const { data: messageData, error: messageError } = await supabase
               .from('messages')
@@ -72,7 +125,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
                   id
                 )
               `)
-              .eq('id', payload.new.id)
+              .eq('id', newMessage.id)
               .single()
 
             if (messageError) {
@@ -129,8 +182,8 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
               ))
             }
           } else if (payload.eventType === 'DELETE') {
-            const deletedMessage = payload.old as Message
-            setMessages(prev => prev.filter(msg => msg.id !== deletedMessage.id))
+            const oldMessage = (payload as RealtimePostgresDeletePayload<MessageRow>).old
+            setMessages(prev => prev.filter(msg => msg.id !== oldMessage.id))
           }
         }
       )
@@ -141,12 +194,16 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
           schema: 'public',
           table: 'message_reactions'
         },
-        async (payload: { 
-          new: { message_id: string } | null;
-          old: { message_id: string } | null;
-        }) => {
-          // When reactions change, refetch the affected message
-          const messageId = payload.new?.message_id || payload.old?.message_id
+        async (payload: RealtimePostgresChangesPayload<ReactionRow>) => {
+          if (!payload.eventType) return
+          
+          let messageId: string | undefined
+          if (payload.eventType === 'DELETE') {
+            messageId = (payload as RealtimePostgresDeletePayload<ReactionRow>).old.message_id
+          } else {
+            messageId = (payload as RealtimePostgresInsertPayload<ReactionRow> | RealtimePostgresUpdatePayload<ReactionRow>).new.message_id
+          }
+
           if (!messageId) return
 
           const { data: messageData, error: messageError } = await supabase
@@ -202,7 +259,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      channel.unsubscribe()
     }
   }, [channelId, parentId])
 
@@ -210,47 +267,57 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
     try {
       setIsLoading(true)
       setError(null)
-      const query = supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:users!user_id(
-            id,
-            email,
-            name,
-            avatar_url
-          ),
-          reactions (
-            id,
-            emoji,
-            user_id
-          ),
-          replies:messages!parent_id (
-            id
-          )
-        `)
-        .eq('channel_id', channelId)
-        .order('created_at', { ascending: true })
 
-      if (parentId) {
-        // In thread view, get both the parent message and its replies
-        query.or(`id.eq.${parentId},parent_id.eq.${parentId}`)
-      } else {
-        // In main view, only get messages without a parent
-        query.is('parent_id', null)
+      // Check if this is a direct message channel
+      const { data: dmChannel, error: dmError } = await supabase
+        .from('direct_message_channels')
+        .select('id')
+        .eq('id', channelId)
+        .single();
+
+      const isDM = !dmError && dmChannel;
+
+      const baseQuery = `
+        *,
+        sender:${isDM ? 'users!sender_id' : 'users!user_id'}(
+          id,
+          email,
+          name,
+          avatar_url
+        ),
+        ${isDM ? 'reactions:direct_message_reactions' : 'reactions'}(
+          id,
+          emoji,
+          user_id
+        )`;
+
+      const query = supabase
+        .from(isDM ? 'direct_messages' : 'messages')
+        .select(isDM ? baseQuery : `${baseQuery}, replies:messages!parent_id(id)`)
+        .eq('channel_id', channelId)
+        .order('created_at', { ascending: true });
+
+      if (!isDM) {
+        if (parentId) {
+          // In thread view, get both the parent message and its replies
+          query.or(`id.eq.${parentId},parent_id.eq.${parentId}`);
+        } else {
+          // In main view, only get messages without a parent
+          query.is('parent_id', null);
+        }
       }
 
-      const { data, error: fetchError } = await query
+      const { data, error: fetchError } = await query;
 
-      if (fetchError) throw fetchError
+      if (fetchError) throw fetchError;
 
       // Transform the data to match our Message type
-      const transformedMessages = data.map(msg => ({
+      const transformedMessages = ((data || []) as unknown as MessageResponse[]).map(msg => ({
         id: msg.id,
         content: msg.content,
         channel_id: msg.channel_id,
-        user_id: msg.user_id,
-        parent_id: msg.parent_id,
+        user_id: (isDM ? msg.sender_id : msg.user_id) || '',
+        parent_id: msg.parent_id === null ? undefined : msg.parent_id,
         file: msg.file,
         created_at: msg.created_at,
         updated_at: msg.updated_at,
@@ -264,108 +331,160 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
           emoji: r.emoji,
           user_id: r.user_id
         })) || [],
-        reply_count: msg.replies?.length || 0
-      }))
+        reply_count: isDM ? 0 : (msg.replies?.length || 0)
+      }));
 
       // Sort messages so parent appears first in thread view
       if (parentId) {
         transformedMessages.sort((a, b) => {
-          if (a.id === parentId) return -1
-          if (b.id === parentId) return 1
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        })
+          if (a.id === parentId) return -1;
+          if (b.id === parentId) return 1;
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
       }
 
-      setMessages(transformedMessages)
+      setMessages(transformedMessages);
     } catch (err) {
-      console.error('Error fetching messages:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch messages'))
+      console.error('Error fetching messages:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch messages'));
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const sendMessage = async (content: string, file?: File) => {
-    if (!user) return
+    if (!user) throw new Error('User not authenticated')
 
     try {
-      let fileData = null
-
+      let fileUrl: string | null = null
+      let fileData: { name: string; type: string; size: number; url: string; path: string } | null = null
+      
       if (file) {
-        // Upload file to Supabase storage
-        const fileExt = file.name.split('.').pop()
-        const userId = user.id
+        const fileExt = file.name.split('.').pop() || ''
         const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-        const filePath = `${userId}/${fileName}` // Include user ID in path for better organization
+        const filePath = `${channelId}/${fileName}`
 
-        const { data: uploadData, error: uploadError } = await supabase
-          .storage
+        const { error: uploadError } = await supabase.storage
           .from('message-attachments')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          })
+          .upload(filePath, file)
 
         if (uploadError) throw uploadError
 
-        // Get signed URL with longer expiration
-        const { data: signedData } = await supabase
-          .storage
+        const { data } = supabase.storage
           .from('message-attachments')
-          .createSignedUrl(filePath, 365 * 24 * 60 * 60) // 1 year expiration
+          .getPublicUrl(filePath)
 
-        if (!signedData) throw new Error('Failed to generate signed URL')
+        fileUrl = data.publicUrl
 
+        // Create a proper file object with all required properties
         fileData = {
           name: file.name,
           type: file.type,
           size: file.size,
-          url: signedData.signedUrl,
-          path: filePath // Store the path for future URL regeneration
+          url: fileUrl,
+          path: filePath
         }
       }
 
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          content,
-          channel_id: channelId,
-          user_id: user.id,
-          parent_id: parentId,
-          file: fileData
-        })
+      // Check if this is a direct message channel
+      const { data: dmChannel, error: dmError } = await supabase
+        .from('direct_message_channels')
+        .select('id')
+        .eq('id', channelId)
+        .single();
 
-      if (error) throw error
-    } catch (error) {
-      console.error('Error sending message:', error)
-      throw error
+      const isDM = !dmError && dmChannel;
+
+      const messageData = isDM ? {
+        channel_id: channelId,
+        content,
+        sender_id: user.id,
+        file: fileData
+      } : {
+        channel_id: channelId,
+        content,
+        user_id: user.id,
+        parent_id: parentId || null,
+        file: fileData
+      };
+
+      const { data, error } = await supabase
+        .from(isDM ? 'direct_messages' : 'messages')
+        .insert(messageData)
+        .select(`
+          *,
+          sender:${isDM ? 'users!sender_id' : 'users!user_id'}(
+            id,
+            email,
+            name,
+            avatar_url
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      // Optimistically add the message to the UI immediately
+      const optimisticMessage: Message = {
+        id: data.id,
+        content: data.content,
+        channel_id: data.channel_id,
+        user_id: isDM ? data.sender_id : data.user_id,
+        parent_id: data.parent_id,
+        file: data.file,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        user: {
+          id: data.sender.id,
+          name: data.sender.name || data.sender.email,
+          avatar: data.sender.avatar_url
+        },
+        reactions: [],
+        reply_count: 0
+      };
+
+      setMessages(prev => [...prev, optimisticMessage])
+
+    } catch (err) {
+      console.error('Error sending message:', err)
+      throw err
     }
   }
 
   const addReaction = async (messageId: string, emoji: string) => {
-    if (!user) return
+    if (!user) return;
 
     try {
+      // Check if this is a direct message channel
+      const { data: dmChannel, error: dmError } = await supabase
+        .from('direct_message_channels')
+        .select('id')
+        .eq('id', channelId)
+        .single();
+
+      const isDM = !dmError && dmChannel;
+      const reactionsTable = isDM ? 'direct_message_reactions' : 'message_reactions';
+
       // First check if the reaction already exists
       const { data: existingReactions, error: checkError } = await supabase
-        .from('message_reactions')
+        .from(reactionsTable)
         .select('id')
         .eq('message_id', messageId)
         .eq('user_id', user.id)
-        .eq('emoji', emoji)
+        .eq('emoji', emoji);
 
       if (checkError) {
-        throw checkError
+        throw checkError;
       }
 
       if (existingReactions && existingReactions.length > 0) {
         // If reaction exists, remove it
         const { error } = await supabase
-          .from('message_reactions')
+          .from(reactionsTable)
           .delete()
-          .eq('id', existingReactions[0].id)
+          .eq('id', existingReactions[0].id);
 
-        if (error) throw error
+        if (error) throw error;
 
         // Update local state immediately
         setMessages(prev => prev.map(msg => {
@@ -375,23 +494,23 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
               reactions: (msg.reactions || []).filter(r => 
                 !(r.emoji === emoji && r.user_id === user.id)
               )
-            }
+            };
           }
-          return msg
-        }))
+          return msg;
+        }));
       } else {
         // Add the new reaction
         const { data: newReaction, error } = await supabase
-          .from('message_reactions')
+          .from(reactionsTable)
           .insert({
             message_id: messageId,
             user_id: user.id,
             emoji
           })
           .select('id')
-          .single()
+          .single();
 
-        if (error) throw error
+        if (error) throw error;
 
         // Update local state immediately
         setMessages(prev => prev.map(msg => {
@@ -403,34 +522,44 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
                 emoji,
                 user_id: user.id
               }]
-            }
+            };
           }
-          return msg
-        }))
+          return msg;
+        }));
       }
     } catch (error) {
-      console.error('Error toggling reaction:', error)
+      console.error('Error toggling reaction:', error);
     }
-  }
+  };
 
   const removeReaction = async (messageId: string, emoji: string) => {
-    if (!user) return
+    if (!user) return;
 
     try {
+      // Check if this is a direct message channel
+      const { data: dmChannel, error: dmError } = await supabase
+        .from('direct_message_channels')
+        .select('id')
+        .eq('id', channelId)
+        .single();
+
+      const isDM = !dmError && dmChannel;
+      const reactionsTable = isDM ? 'direct_message_reactions' : 'message_reactions';
+
       const { error } = await supabase
-        .from('message_reactions')
+        .from(reactionsTable)
         .delete()
         .match({
           message_id: messageId,
           user_id: user.id,
           emoji
-        })
+        });
 
-      if (error) throw error
+      if (error) throw error;
     } catch (error) {
-      console.error('Error removing reaction:', error)
+      console.error('Error removing reaction:', error);
     }
-  }
+  };
 
   return {
     messages,

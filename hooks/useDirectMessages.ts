@@ -8,16 +8,52 @@ import type { Database } from '@/types/supabase'
 type DbResult<T> = T extends PromiseLike<infer U> ? U : never
 type DbResultOk<T> = DbResult<T> extends { data: infer U } ? U : never
 
-interface DirectMessageUser {
+interface UserProfile {
+  name: string;
+}
+
+interface User {
   id: string;
   email: string;
   name: string;
   avatar_url?: string;
+  user_profiles: UserProfile[];
+}
+
+interface RawUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  user_profiles: UserProfile[];
 }
 
 interface DirectMessageParticipant {
   user_id: string;
-  user: DirectMessageUser;
+  user: User;
+}
+
+interface RawParticipant {
+  user_id: string;
+  user: RawUser;
+}
+
+interface RawMessage {
+  id: string;
+  content: string;
+  sender_id: string;
+  file: {
+    name: string;
+    type: string;
+    url: string;
+  } | null;
+  created_at: string;
+  sender: RawUser;
+  reactions: {
+    id: string;
+    emoji: string;
+    user_id: string;
+  }[] | null;
 }
 
 interface DirectMessageChannel {
@@ -35,7 +71,7 @@ interface DirectMessage {
     url: string;
   };
   created_at: string;
-  sender: DirectMessageUser;
+  sender: User;
   reactions: {
     id: string;
     emoji: string;
@@ -92,18 +128,26 @@ export function useDirectMessages() {
 
   const fetchChannels = async () => {
     try {
+      type RawChannel = {
+        id: string;
+        participants: RawParticipant[];
+      };
+
       const { data: channelsData, error: channelsError } = await supabase
         .from('direct_message_channels')
         .select(`
           id,
           created_at,
-          participants:direct_message_participants(
+          participants:direct_message_participants!inner(
             user_id,
-            user:users!user_id(
+            user:users!inner(
               id,
               email,
               name,
-              avatar_url
+              avatar_url,
+              user_profiles (
+                name
+              )
             )
           )
         `)
@@ -111,7 +155,7 @@ export function useDirectMessages() {
 
       if (channelsError) throw channelsError
 
-      const transformedChannels: DirectMessageChannel[] = (channelsData ?? []).map(channel => ({
+      const transformedChannels: DirectMessageChannel[] = (channelsData as RawChannel[] ?? []).map(channel => ({
         id: channel.id,
         participants: channel.participants.map(p => ({
           user_id: p.user_id,
@@ -119,7 +163,8 @@ export function useDirectMessages() {
             id: p.user.id,
             email: p.user.email,
             name: p.user.name,
-            avatar_url: p.user.avatar_url ?? undefined
+            avatar_url: p.user.avatar_url ?? undefined,
+            user_profiles: p.user.user_profiles
           }
         }))
       }))
@@ -139,11 +184,14 @@ export function useDirectMessages() {
           content,
           channel_id,
           sender_id,
-          sender:users!sender_id(
+          sender:users!inner(
             id,
             email,
             name,
-            avatar_url
+            avatar_url,
+            user_profiles (
+              name
+            )
           ),
           file,
           created_at,
@@ -158,17 +206,18 @@ export function useDirectMessages() {
 
       if (messagesError) throw messagesError
 
-      const transformedMessages: DirectMessage[] = (messagesData ?? []).map(msg => ({
+      const transformedMessages: DirectMessage[] = (messagesData as RawMessage[] ?? []).map(msg => ({
         id: msg.id,
         content: msg.content,
         sender_id: msg.sender_id,
-        file: msg.file,
+        file: msg.file ?? undefined,
         created_at: msg.created_at,
         sender: {
           id: msg.sender.id,
           email: msg.sender.email,
           name: msg.sender.name,
-          avatar_url: msg.sender.avatar_url ?? undefined
+          avatar_url: msg.sender.avatar_url ?? undefined,
+          user_profiles: msg.sender.user_profiles
         },
         reactions: msg.reactions ?? []
       }))

@@ -43,7 +43,8 @@ export function FileAttachment({ file }: FileAttachmentProps) {
     }
   }
 
-  const isImage = file.type.startsWith('image/')
+  // Default to 'application/octet-stream' if type is missing
+  const isImage = (file.type || 'application/octet-stream').startsWith('image/')
 
   if (isImage && !imageError) {
     return (
@@ -68,7 +69,7 @@ export function FileAttachment({ file }: FileAttachmentProps) {
       rel="noopener noreferrer"
       className="flex items-center gap-2 p-2 rounded bg-gray-100 hover:bg-gray-200"
       onClick={(e) => {
-        if (!url.includes('token=')) {
+        if (!url || !url.includes('token=')) {
           e.preventDefault()
           refreshUrl().then(() => window.open(url, '_blank'))
         }

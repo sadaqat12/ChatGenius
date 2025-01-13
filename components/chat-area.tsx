@@ -12,9 +12,36 @@ import { useMessages } from "@/hooks/useMessages"
 import { Message } from "@/types/chat"
 import { useAuth } from "@/contexts/auth-context"
 import Image from 'next/image'
+import { supabase } from "@/lib/supabase"
+
+interface DirectMessageParticipant {
+  user_id: string;
+  user: {
+    id: string;
+    email: string;
+    user_profiles: Array<{
+      name: string;
+    }>;
+  };
+}
+
+interface ParticipantResponse {
+  user_id: string;
+  user: {
+    id: string;
+    email: string;
+    user_profiles: Array<{
+      name: string;
+    }>;
+  };
+}
 
 interface ChatAreaProps {
-  activeChat: ActiveChat
+  activeChat: {
+    id: string;
+    name?: string;
+    type: 'channel' | 'directMessage';
+  }
 }
 
 interface AttachedFile {
@@ -30,6 +57,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { user } = useAuth()
+  const [recipientName, setRecipientName] = useState<string>('Direct Message')
 
   const {
     messages,
@@ -55,6 +83,40 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
     }
   }, [attachedFile])
 
+  useEffect(() => {
+    const fetchRecipientName = async () => {
+      if (activeChat.type === 'directMessage') {
+        const { data: participants, error } = await supabase
+          .from('direct_message_participants')
+          .select(`
+            user_id,
+            user:users!inner (
+              id,
+              email,
+              user_profiles!inner (
+                name
+              )
+            )
+          `)
+          .eq('channel_id', activeChat.id);
+
+        if (!error && participants) {
+          const otherParticipant = (participants as ParticipantResponse[]).find(
+            p => p.user_id !== user?.id
+          );
+          if (otherParticipant?.user) {
+            const name = otherParticipant.user.user_profiles[0]?.name || 
+                        otherParticipant.user.email || 
+                        'Unknown User';
+            setRecipientName(name);
+          }
+        }
+      }
+    };
+
+    fetchRecipientName();
+  }, [activeChat.id, activeChat.type, user?.id]);
+
   // Filter messages based on whether we're in thread view or main view
   const filteredMessages = activeThread
     ? messages.filter(message => 
@@ -68,6 +130,19 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
     return message?.reply_count || 0
   }
 
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (scrollAreaRef.current) {
+        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight
+        }
+      }
+    }, 100)
+  }
+
   const handleSendMessage = async () => {
     if (newMessage.trim() === '' && !attachedFile) return
 
@@ -75,10 +150,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       await sendMessage(newMessage, attachedFile?.file)
       setNewMessage('')
       setAttachedFile(null)
-
-      if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
-      }
+      scrollToBottom()
     } catch (err) {
       console.error('Failed to send message:', err)
       // TODO: Show error toast
@@ -137,7 +209,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
     <div className="flex-1 flex flex-col">
       <div className="p-4 border-b flex justify-between items-center">
         <h2 className="text-xl font-bold">
-          {activeChat.type === 'channel' ? `#${activeChat.name}` : activeChat.name}
+          {activeChat.type === 'channel' ? `#${activeChat.name}` : recipientName}
           {activeThread && ' > Thread'}
         </h2>
         {activeThread && (
@@ -203,6 +275,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </ScrollArea>
       <div className="p-4 border-t">
         {attachedFile && (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
-import { supabase } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { ChatGeniusHeader } from '@/components/chat-genius-header'
 import { UserPlus, X } from 'lucide-react'
 import {
@@ -62,17 +62,20 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         .eq('user_id', session.user.id)
         .single()
 
-      if (error || (membership?.role !== 'admin' && membership?.role !== 'owner')) {
+      if (error || !membership || (membership.role !== 'admin' && membership.role !== 'owner')) {
         router.push(`/teams/${params.teamId}`)
         toast({
           title: "Access denied",
           description: "You must be an admin to access team settings.",
           variant: "destructive",
         })
+        return false
       }
+      return true
     } catch (error) {
       console.error('Error checking admin access:', error)
       router.push(`/teams/${params.teamId}`)
+      return false
     }
   }
 
@@ -135,49 +138,33 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
 
     setInviting(true)
     try {
-      // First check if the user exists by checking user_profiles
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('user_id')
-        .eq('email', inviteEmail.toLowerCase())
-        .single()
-
-      if (existingProfile) {
-        // User exists, add them directly to the team
-        const { error: memberError } = await supabase
-          .from('team_members')
-          .insert({
-            team_id: params.teamId,
-            user_id: existingProfile.user_id,
-            role: 'member'
-          })
-
-        if (memberError) throw memberError
-
-        toast({
-          title: "User added!",
-          description: `${inviteEmail} has been added to the team.`,
-        })
-      } else {
-        // User doesn't exist, create an invitation using the API route
-        const response = await fetch(`/api/teams/${params.teamId}/invitations`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email: inviteEmail.toLowerCase() })
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to send invitation');
-        }
-
-        toast({
-          title: "Invitation sent!",
-          description: `An invitation has been sent to ${inviteEmail}`,
-        })
+      const isAdmin = await checkAdminAccess()
+      if (!isAdmin) {
+        throw new Error('Not authorized to invite to this team')
       }
+
+      // Create an invitation using the API route
+      const response = await fetch(`/api/teams/${params.teamId}/invitations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: inviteEmail.toLowerCase() })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to send invitation');
+      }
+
+      const data = await response.json();
+      
+      // Handle both new invitations and existing ones
+      const message = data.message || 'An invitation has been sent';
+      toast({
+        title: "Success!",
+        description: message,
+      })
       
       setInviteEmail('')
       setInviteDialogOpen(false)
@@ -198,7 +185,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
   const fetchPendingInvites = async () => {
     try {
       const { data: invites, error } = await supabase
-        .from('team_invitations')
+        .from('team_invites')
         .select('*')
         .eq('team_id', params.teamId)
         .eq('status', 'pending')
@@ -294,8 +281,8 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
                 </form>
               </DialogContent>
             </Dialog>
-            <Button variant="outline" onClick={() => router.push(`/teams/${params.teamId}`)}>
-              Back to Team
+            <Button variant="outline" onClick={() => router.push('/teams')}>
+              Dashboard
             </Button>
           </div>
         </div>

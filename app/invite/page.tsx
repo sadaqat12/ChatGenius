@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
-import { supabase } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { ChatGeniusHeader } from '@/components/chat-genius-header'
 
 interface TeamInvite {

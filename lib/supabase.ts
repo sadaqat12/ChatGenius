@@ -1,6 +1,6 @@
 'use client'
 
-import { createBrowserClient } from '@supabase/ssr'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/supabase'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -11,12 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-console.log('Initializing Supabase client with URL:', supabaseUrl)
-
-export const supabase = createBrowserClient<Database>(
-  supabaseUrl,
-  supabaseAnonKey
-)
+export const supabase = createClientComponentClient<Database>()
 
 // Test the connection
 supabase.auth.getSession().then(

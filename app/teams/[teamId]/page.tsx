@@ -5,7 +5,7 @@ import { TeamSidebar } from "@/components/team-sidebar"
 import { ChannelSidebar } from "@/components/channel-sidebar"
 import { ChatArea } from "@/components/chat-area"
 import { SearchBar } from "@/components/search-bar"
-import { supabase } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 
 export type ActiveChat = {
   type: 'channel' | 'directMessage'
