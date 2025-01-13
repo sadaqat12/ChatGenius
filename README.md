@@ -35,7 +35,7 @@ ChatGenius is a modern, real-time chat application built with Next.js 14, Supaba
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/chatgenius.git
+git clone https://github.com/sadaqat12/chatgenius.git
 cd chatgenius
 ```
 
