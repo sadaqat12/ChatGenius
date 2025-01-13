@@ -14,6 +14,15 @@ interface TeamInvite {
   status: string
 }
 
+interface InviteResponse {
+  team_id: string
+  email: string
+  status: string
+  team: {
+    name: string
+  }
+}
+
 export default function InvitePage() {
   const [loading, setLoading] = useState(true)
   const [invite, setInvite] = useState<TeamInvite | null>(null)
@@ -48,7 +57,14 @@ export default function InvitePage() {
       // Check if invitation exists and is still pending
       const { data: invite, error } = await supabase
         .from('team_invites')
-        .select('team_id, email, status, teams ( name )')
+        .select(`
+          team_id,
+          email,
+          status,
+          team:teams!inner (
+            name
+          )
+        `)
         .eq('team_id', inviteData.team_id)
         .eq('email', session.user.email)
         .eq('status', 'pending')
@@ -64,11 +80,12 @@ export default function InvitePage() {
         return
       }
 
+      const typedInvite = invite as unknown as InviteResponse
       setInvite({
-        team_id: invite.team_id,
-        team_name: invite.teams.name,
-        email: invite.email,
-        status: invite.status
+        team_id: typedInvite.team_id,
+        team_name: typedInvite.team.name,
+        email: typedInvite.email,
+        status: typedInvite.status
       })
     } catch (error) {
       console.error('Error checking invitation:', error)
