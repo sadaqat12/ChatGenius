@@ -13,7 +13,7 @@ export function useThread() {
   });
 
   const openThread = useCallback((message: Message) => {
-    if (!message.parentId) {
+    if (!message.parent_id) {
       setState({
         isOpen: true,
         message
