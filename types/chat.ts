@@ -31,30 +31,46 @@ export interface Team {
   updated_at: string
 }
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  status?: 'online' | 'away' | 'busy' | 'offline';
+}
+
 export interface Message {
-  id: string
-  content: string
-  channelId: string
-  userId: string
-  parentId: string | null
+  id: string;
+  content: string;
+  user: User;
+  channel_id: string;
+  parent_id?: string;
+  created_at: string;
+  updated_at: string;
   file?: {
-    name: string
-    type: string
-    size: number
-    url: string
-    path?: string
-  } | null
-  createdAt: string
-  updatedAt: string
-  user: {
-    id: string
-    name: string
-    avatar?: string
-  }
-  reactions: {
-    id: string
-    emoji: string
-    userId: string
-  }[]
-  replyCount: number
+    name: string;
+    type: string;
+    size: number;
+    url: string;
+    path?: string;
+  };
+  thread_count: number;
+  reactions: Reaction[];
+}
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  users: User[];
+  count: number;
+}
+
+export interface DirectMessageChannel {
+  id: string;
+  participants: User[];
+  created_at: string;
+}
+
+export interface DirectMessage extends Omit<Message, 'channel_id'> {
+  channel_id: string;
 } 
