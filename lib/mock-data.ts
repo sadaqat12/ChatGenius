@@ -1,5 +1,5 @@
 export const teams = [
-  { id: 1, name: 'Acme Inc', avatar: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=64&h=64&fit=crop&crop=faces' },
+  { id: 1, name: 'Acme1 Inc', avatar: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=64&h=64&fit=crop&crop=faces' },
   { id: 2, name: 'Globex Corp', avatar: 'https://images.unsplash.com/photo-1549924231-f129b911e442?w=64&h=64&fit=crop&crop=faces' },
   { id: 3, name: 'Initech', avatar: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=64&h=64&fit=crop&crop=faces' },
 ];
