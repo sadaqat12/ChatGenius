@@ -41,14 +41,21 @@ interface RawParticipant {
 interface RawMessage {
   id: string;
   content: string;
+  channel_id: string;
   sender_id: string;
+  sender: {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url: string | null;
+    user_profiles: { name: string; }[];
+  };
   file: {
     name: string;
     type: string;
     url: string;
   } | null;
   created_at: string;
-  sender: RawUser;
   reactions: {
     id: string;
     emoji: string;
@@ -59,6 +66,23 @@ interface RawMessage {
 interface DirectMessageChannel {
   id: string;
   participants: DirectMessageParticipant[];
+}
+
+interface RawChannel {
+  id: string;
+  created_at: string;
+  participants: {
+    user_id: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      avatar_url: string | null;
+      user_profiles: {
+        name: string;
+      }[];
+    };
+  }[];
 }
 
 interface DirectMessage {
@@ -128,11 +152,6 @@ export function useDirectMessages() {
 
   const fetchChannels = async () => {
     try {
-      type RawChannel = {
-        id: string;
-        participants: RawParticipant[];
-      };
-
       const { data: channelsData, error: channelsError } = await supabase
         .from('direct_message_channels')
         .select(`
@@ -155,7 +174,7 @@ export function useDirectMessages() {
 
       if (channelsError) throw channelsError
 
-      const transformedChannels: DirectMessageChannel[] = (channelsData as RawChannel[] ?? []).map(channel => ({
+      const transformedChannels: DirectMessageChannel[] = (channelsData as unknown as RawChannel[]).map(channel => ({
         id: channel.id,
         participants: channel.participants.map(p => ({
           user_id: p.user_id,
@@ -206,7 +225,7 @@ export function useDirectMessages() {
 
       if (messagesError) throw messagesError
 
-      const transformedMessages: DirectMessage[] = (messagesData as RawMessage[] ?? []).map(msg => ({
+      const transformedMessages: DirectMessage[] = (messagesData as unknown as RawMessage[]).map(msg => ({
         id: msg.id,
         content: msg.content,
         sender_id: msg.sender_id,

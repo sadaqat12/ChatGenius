@@ -15,8 +15,10 @@ export interface Channel {
 
 export interface User {
   id: string;
+  email: string;
   name: string;
-  role: 'admin' | 'user';
+  avatar_url?: string;
+  user_profiles: UserProfile[];
 }
 
 export interface Reaction {
@@ -24,4 +26,8 @@ export interface Reaction {
   emoji: string;
   userId: string;
   messageId: string;
+}
+
+export interface UserProfile {
+  name: string;
 } 

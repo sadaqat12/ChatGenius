@@ -10,12 +10,12 @@ const nextConfig = {
     ],
   },
   typescript: {
-    // Comment this out if you want to catch type errors during build
-    // ignoreBuildErrors: true,
+    // Enable type checking during build
+    ignoreBuildErrors: false,
   },
   eslint: {
-    // Comment this out if you want to catch lint errors during build
-    // ignoreDuringBuilds: true,
+    // Enable ESLint checking during build
+    ignoreDuringBuilds: false,
   },
 }
 

@@ -34,9 +34,9 @@ export interface Team {
 export interface Message {
   id: string
   content: string
-  channel_id: string
-  user_id: string
-  parent_id?: string
+  channelId: string
+  userId: string
+  parentId: string | null
   file?: {
     name: string
     type: string
@@ -44,8 +44,8 @@ export interface Message {
     url: string
     path?: string
   } | null
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
   user: {
     id: string
     name: string
@@ -54,7 +54,7 @@ export interface Message {
   reactions: {
     id: string
     emoji: string
-    user_id: string
+    userId: string
   }[]
-  reply_count?: number
+  replyCount: number
 } 

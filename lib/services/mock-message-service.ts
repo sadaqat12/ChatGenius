@@ -53,7 +53,8 @@ export class MockMessageService implements MessageService {
         id: String(i),
         emoji: r.emoji,
         userId: r.users[0]
-      }))
+      })),
+      reply_count: msg.threadId ? 1 : 0
     }));
   }
 
@@ -76,7 +77,8 @@ export class MockMessageService implements MessageService {
     return {
       ...message,
       id: String(newMockMessage.id),
-      createdAt: new Date()
+      createdAt: new Date(),
+      reply_count: 0
     };
   }
 

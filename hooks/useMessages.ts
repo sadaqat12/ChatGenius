@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/auth-context'
 import { RealtimePostgresChangesPayload, RealtimePostgresInsertPayload, RealtimePostgresUpdatePayload, RealtimePostgresDeletePayload } from '@supabase/supabase-js'
 import type { Database } from '@/types/supabase'
+import { User, UserProfile } from '@/types'
+import type { Message } from '@/types/chat'
 
 type MessageRow = Database['public']['Tables']['messages']['Row']
 type ReactionRow = Database['public']['Tables']['message_reactions']['Row']
@@ -23,26 +25,22 @@ interface UseMessagesReturn {
   removeReaction: (messageId: string, emoji: string) => Promise<void>
 }
 
-interface Message {
+interface RawUser {
   id: string;
-  content: string;
-  channel_id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  user_profiles: UserProfile[];
+}
+
+interface DirectMessageParticipant {
   user_id: string;
-  parent_id?: string | null;
-  file?: any;
-  created_at: string;
-  updated_at: string;
-  user: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  reactions: Array<{
-    id: string;
-    emoji: string;
-    user_id: string;
-  }>;
-  reply_count: number;
+  user: User;
+}
+
+interface RawParticipant {
+  user_id: string;
+  user: RawUser;
 }
 
 interface MessageResponse {
@@ -138,12 +136,12 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
             const transformedMessage: Message = {
               id: messageData.id,
               content: messageData.content,
-              channel_id: messageData.channel_id,
-              user_id: messageData.user_id,
-              parent_id: messageData.parent_id,
+              channelId: messageData.channel_id,
+              userId: messageData.user_id,
+              parentId: messageData.parent_id || null,
               file: messageData.file,
-              created_at: messageData.created_at,
-              updated_at: messageData.updated_at,
+              createdAt: messageData.created_at,
+              updatedAt: messageData.updated_at,
               user: {
                 id: messageData.sender.id,
                 name: messageData.sender.name || messageData.sender.email,
@@ -152,24 +150,24 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
               reactions: messageData.reactions?.map((r: { id: string; emoji: string; user_id: string }) => ({
                 id: r.id,
                 emoji: r.emoji,
-                user_id: r.user_id
+                userId: r.user_id
               })) || [],
-              reply_count: messageData.replies?.length || 0
+              replyCount: messageData.replies?.length || 0
             }
 
             if (payload.eventType === 'INSERT') {
               // If this is a reply, update the parent message's reply count
-              if (transformedMessage.parent_id && !parentId) {
+              if (transformedMessage.parentId && !parentId) {
                 const { data: parentMessage } = await supabase
                   .from('messages')
                   .select('*, replies:messages!parent_id(id)')
-                  .eq('id', transformedMessage.parent_id)
+                  .eq('id', transformedMessage.parentId)
                   .single()
 
                 if (parentMessage) {
                   setMessages(prev => prev.map(msg => 
-                    msg.id === transformedMessage.parent_id 
-                      ? { ...msg, reply_count: parentMessage.replies.length }
+                    msg.id === transformedMessage.parentId 
+                      ? { ...msg, replyCount: parentMessage.replies.length }
                       : msg
                   ))
                 }
@@ -233,12 +231,12 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
           const transformedMessage: Message = {
             id: messageData.id,
             content: messageData.content,
-            channel_id: messageData.channel_id,
-            user_id: messageData.user_id,
-            parent_id: messageData.parent_id,
+            channelId: messageData.channel_id,
+            userId: messageData.user_id,
+            parentId: messageData.parent_id || null,
             file: messageData.file,
-            created_at: messageData.created_at,
-            updated_at: messageData.updated_at,
+            createdAt: messageData.created_at,
+            updatedAt: messageData.updated_at,
             user: {
               id: messageData.sender.id,
               name: messageData.sender.name || messageData.sender.email,
@@ -247,8 +245,9 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
             reactions: messageData.reactions?.map((r: { id: string; emoji: string; user_id: string }) => ({
               id: r.id,
               emoji: r.emoji,
-              user_id: r.user_id
-            })) || []
+              userId: r.user_id
+            })) || [],
+            replyCount: 0
           }
 
           setMessages(prev => prev.map(msg => 
@@ -289,11 +288,11 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
           id,
           emoji,
           user_id
-        )`;
+        )${!isDM ? ', replies:messages!parent_id(id)' : ''}`;
 
       const query = supabase
         .from(isDM ? 'direct_messages' : 'messages')
-        .select(isDM ? baseQuery : `${baseQuery}, replies:messages!parent_id(id)`)
+        .select(baseQuery)
         .eq('channel_id', channelId)
         .order('created_at', { ascending: true });
 
@@ -315,12 +314,12 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
       const transformedMessages = ((data || []) as unknown as MessageResponse[]).map(msg => ({
         id: msg.id,
         content: msg.content,
-        channel_id: msg.channel_id,
-        user_id: (isDM ? msg.sender_id : msg.user_id) || '',
-        parent_id: msg.parent_id === null ? undefined : msg.parent_id,
+        channelId: msg.channel_id,
+        userId: (isDM ? msg.sender_id : msg.user_id) || '',
+        parentId: msg.parent_id || null,
         file: msg.file,
-        created_at: msg.created_at,
-        updated_at: msg.updated_at,
+        createdAt: msg.created_at,
+        updatedAt: msg.updated_at,
         user: {
           id: msg.sender.id,
           name: msg.sender.name || msg.sender.email,
@@ -329,9 +328,9 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
         reactions: msg.reactions?.map((r: { id: string; emoji: string; user_id: string }) => ({
           id: r.id,
           emoji: r.emoji,
-          user_id: r.user_id
+          userId: r.user_id
         })) || [],
-        reply_count: isDM ? 0 : (msg.replies?.length || 0)
+        replyCount: isDM ? 0 : (msg.replies?.length || 0)
       }));
 
       // Sort messages so parent appears first in thread view
@@ -339,7 +338,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
         transformedMessages.sort((a, b) => {
           if (a.id === parentId) return -1;
           if (b.id === parentId) return 1;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         });
       }
 
@@ -428,19 +427,19 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
       const optimisticMessage: Message = {
         id: data.id,
         content: data.content,
-        channel_id: data.channel_id,
-        user_id: isDM ? data.sender_id : data.user_id,
-        parent_id: data.parent_id,
+        channelId: data.channel_id,
+        userId: isDM ? data.sender_id : data.user_id,
+        parentId: data.parent_id || null,
         file: data.file,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
         user: {
           id: data.sender.id,
           name: data.sender.name || data.sender.email,
           avatar: data.sender.avatar_url
         },
         reactions: [],
-        reply_count: 0
+        replyCount: 0
       };
 
       setMessages(prev => [...prev, optimisticMessage])
@@ -492,7 +491,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
             return {
               ...msg,
               reactions: (msg.reactions || []).filter(r => 
-                !(r.emoji === emoji && r.user_id === user.id)
+                !(r.emoji === emoji && r.userId === user.id)
               )
             };
           }
@@ -520,7 +519,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions): UseMes
               reactions: [...(msg.reactions || []), {
                 id: newReaction.id,
                 emoji,
-                user_id: user.id
+                userId: user.id
               }]
             };
           }
