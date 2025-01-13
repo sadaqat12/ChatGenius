@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +17,13 @@ interface FileAttachmentProps {
 export function FileAttachment({ file }: FileAttachmentProps) {
   const [url, setUrl] = useState(file.url)
   const [imageError, setImageError] = useState(false)
+
+  useEffect(() => {
+    // If we have a path, always try to get a signed URL first
+    if (file.path) {
+      refreshUrl()
+    }
+  }, [file.path])
 
   // Refresh URL if it's expired
   const refreshUrl = async () => {
@@ -69,10 +78,9 @@ export function FileAttachment({ file }: FileAttachmentProps) {
       rel="noopener noreferrer"
       className="flex items-center gap-2 p-2 rounded bg-gray-100 hover:bg-gray-200"
       onClick={(e) => {
-        if (!url || !url.includes('token=')) {
-          e.preventDefault()
-          refreshUrl().then(() => window.open(url, '_blank'))
-        }
+        // Always try to refresh the URL before opening
+        e.preventDefault()
+        refreshUrl().then(() => window.open(url, '_blank'))
       }}
     >
       <svg
