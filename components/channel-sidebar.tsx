@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import { Hash, Plus, Lock, MessageSquare } from "lucide-react"
+import { Hash, Plus, Lock, MessageSquare, Bot } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { supabase } from '@/lib/supabase'
 import { Channel } from '@/types/chat'
@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 interface ChannelSidebarProps {
   teamId: string
   activeChannelId?: string
-  onChannelSelect: (channelId: string, type: 'channel' | 'dm') => void
+  onChannelSelect: (channelId: string, type: 'channel' | 'dm' | 'ai') => void
 }
 
 interface UserProfile {
@@ -369,6 +369,24 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
           ))}
         </div>
         
+        <Separator className="my-2 bg-gray-700" />
+        
+        <div className="p-3">
+          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-white">
+            AI Assistant
+          </h2>
+          <div className="space-y-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-white hover:bg-gray-700"
+              onClick={() => onChannelSelect('ai-assistant', 'ai')}
+            >
+              <Bot className="mr-2 h-4 w-4" />
+              Chat with AI
+            </Button>
+          </div>
+        </div>
+
         <Separator className="my-2 bg-gray-700" />
         
         <div className="p-3">

@@ -14,15 +14,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClientComponentClient<Database>({
   supabaseUrl,
   supabaseKey: supabaseAnonKey,
-})
-
-// Test the connection
-supabase.auth.getSession().then(
-  ({ data, error }) => {
-    if (error) {
-      console.error('Supabase connection error:', error)
-    } else {
-      console.log('Supabase client initialized successfully')
-    }
-  }
-) 
+}) 

@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Paperclip, X, Reply, ArrowLeft } from 'lucide-react'
-import { ActiveChat } from "@/app/page"
+import { ActiveChat } from "@/app/teams/[teamId]/page"
 import { FileAttachment } from "@/components/file-attachment"
 import { EmojiReactions } from "@/components/emoji-reactions"
 import { useMessages } from "@/hooks/useMessages"
@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/auth-context"
 import Image from 'next/image'
 import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { AIChatArea } from "@/components/ai-chat-area"
 
 interface DirectMessageParticipant {
   user_id: string;
@@ -47,7 +48,7 @@ interface ChatAreaProps {
   activeChat: {
     id: string;
     name?: string;
-    type: 'channel' | 'directMessage';
+    type: 'channel' | 'directMessage' | 'ai';
   }
 }
 
@@ -65,6 +66,12 @@ interface AttachedFile {
 }
 
 export function ChatArea({ activeChat }: ChatAreaProps) {
+  // If it's an AI chat, render the AI chat component
+  if (activeChat.type === 'ai') {
+    return <AIChatArea />
+  }
+
+  // Rest of the existing component for channel and DM chats
   const [newMessage, setNewMessage] = useState('')
   const [activeThread, setActiveThread] = useState<string | null>(null)
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null)
