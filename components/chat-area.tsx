@@ -9,6 +9,7 @@ import { ActiveChat } from "@/app/page"
 import { FileAttachment } from "@/components/file-attachment"
 import { EmojiReactions } from "@/components/emoji-reactions"
 import { useMessages } from "@/hooks/useMessages"
+import { useDirectMessages } from "@/hooks/useDirectMessages"
 import { Message } from "@/types/chat"
 import { useAuth } from "@/contexts/auth-context"
 import Image from 'next/image'
@@ -21,20 +22,14 @@ interface DirectMessageParticipant {
     id: string;
     email: string;
     user_profiles: Array<{
-      name: string;
+      name: string | null;
     }>;
   };
 }
 
 interface ParticipantResponse {
-  user_id: string;
-  user: {
-    id: string;
-    email: string;
-    user_profiles: Array<{
-      name: string;
-    }>;
-  };
+  data: DirectMessageParticipant[];
+  error: Error | null;
 }
 
 interface RawParticipantResponse {
@@ -78,6 +73,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const { user } = useAuth()
   const [recipientName, setRecipientName] = useState<string>('Direct Message')
+  const [recipientEmail, setRecipientEmail] = useState<string>('')
 
   const {
     messages,
@@ -88,7 +84,8 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
     removeReaction
   } = useMessages({
     channelId: String(activeChat.id),
-    parentId: activeThread || undefined
+    parentId: activeThread || undefined,
+    messageType: activeChat.type === 'directMessage' ? 'direct' : 'channel'
   })
 
   useEffect(() => {
@@ -109,28 +106,26 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
         const { data: participants, error } = await supabase
           .from('direct_message_participants')
           .select(`
-            userId:user_id,
+            user_id,
             user:users!inner (
               id,
               email,
-              userProfiles:user_profiles (
+              user_profiles!inner (
                 name
               )
             )
           `)
-          .eq('channel_id', activeChat.id);
+          .eq('channel_id', activeChat.id) as unknown as ParticipantResponse;
 
         if (!error && participants) {
-          const typedParticipants = participants as unknown as RawParticipantResponse[];
-          const otherParticipant = typedParticipants.find(
-            p => p.userId !== user?.id
+          const otherParticipant = participants.find(
+            p => p.user_id !== user?.id
           );
           
           if (otherParticipant?.user) {
-            const name = otherParticipant.user.userProfiles[0]?.name || 
-                        otherParticipant.user.email || 
-                        'Unknown User';
-            setRecipientName(name);
+            const profileName = otherParticipant.user.user_profiles[0]?.name;
+            setRecipientName(profileName || otherParticipant.user.email);
+            setRecipientEmail(otherParticipant.user.email);
           }
         }
       }
@@ -211,7 +206,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
         await addReaction(messageId, emoji)
       }
     } catch (err) {
-      console.error('Failed to handle reaction:', err)
+      console.error('Error handling reaction:', err)
     }
   }
 
@@ -230,10 +225,19 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   return (
     <div className="flex-1 flex flex-col">
       <div className="p-4 border-b flex justify-between items-center">
-        <h2 className="text-xl font-bold">
-          {activeChat.type === 'channel' ? `#${activeChat.name}` : recipientName}
+        <div>
+          {activeChat.type === 'channel' ? (
+            <h2 className="text-xl font-bold">#{activeChat.name}</h2>
+          ) : (
+            <div>
+              <h2 className="text-xl font-bold">{recipientName}</h2>
+              {activeChat.type === 'directMessage' && (
+                <p className="text-sm text-gray-500">{recipientEmail}</p>
+              )}
+            </div>
+          )}
           {activeThread && ' > Thread'}
-        </h2>
+        </div>
         {activeThread && (
           <Button variant="outline" onClick={() => setActiveThread(null)}>
             <ArrowLeft className="mr-2 h-4 w-4" />

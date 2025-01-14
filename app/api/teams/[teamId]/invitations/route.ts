@@ -1,4 +1,5 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
@@ -10,87 +11,129 @@ export async function POST(
     const { email } = await request.json()
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    
+
     // Get current user's session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError) throw sessionError
+    const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       return NextResponse.json(
-        { error: 'Unauthorized - Please log in' },
+        { error: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    // Check if user is team admin or owner
-    const { data: teamMember, error: teamError } = await supabase
+    // Check if user has permission to invite
+    const { data: membership, error: membershipError } = await supabase
       .from('team_members')
       .select('role')
       .eq('team_id', params.teamId)
       .eq('user_id', session.user.id)
       .single()
 
-    if (teamError) throw teamError
-    if (!teamMember || (teamMember.role !== 'admin' && teamMember.role !== 'owner')) {
+    if (membershipError || !membership) {
       return NextResponse.json(
-        { error: 'Unauthorized - Must be team admin or owner' },
+        { error: 'Not authorized to invite to this team' },
         { status: 403 }
       )
     }
 
-    // Create invitation with admin client
-    const adminClient = createRouteHandlerClient(
-      { cookies: () => cookieStore },
-      {
-        supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-      }
+    // Create admin client to check user existence
+    const adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    // Try to invite the user
-    const { data: invite, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      data: {
-        invite_type: 'team',
-        team_id: params.teamId,
-        team_name: 'GauntletAI'
-      }
-    })
+    // Check if user exists
+    const { data: existingUser, error: userError } = await adminClient.auth.admin.listUsers()
+      .then(({ data: { users } }) => ({
+        data: users.find(u => u.email === email),
+        error: null
+      }))
+      .catch(error => ({ data: null, error }))
 
-    if (inviteError) {
-      console.error('Invite error:', inviteError)
+    if (userError) {
+      console.error('Error checking user existence:', userError)
       return NextResponse.json(
-        { error: inviteError.message },
+        { error: 'Failed to check user existence' },
+        { status: 500 }
+      )
+    }
+
+    if (!existingUser) {
+      return NextResponse.json(
+        { error: 'User does not exist. They must create an account before being invited.' },
         { status: 400 }
       )
     }
 
-    // Create record in team_invites table
-    const { data: teamInvite, error: teamInviteError } = await supabase
+    // Check if user is already a member of the team
+    const { data: existingMember, error: memberError } = await supabase
+      .from('team_members')
+      .select('team_id, user_id')
+      .eq('team_id', params.teamId)
+      .eq('user_id', existingUser.id)
+      .maybeSingle()
+
+    if (memberError) {
+      console.error('Error checking team membership:', memberError)
+      return NextResponse.json(
+        { error: 'Failed to check team membership' },
+        { status: 500 }
+      )
+    }
+
+    if (existingMember) {
+      return NextResponse.json(
+        { error: 'User is already a member of this team' },
+        { status: 400 }
+      )
+    }
+
+    // Check for existing pending invitation
+    const { data: existingInvite, error: inviteError } = await supabase
+      .from('team_invites')
+      .select('id, status')
+      .eq('team_id', params.teamId)
+      .eq('email', email)
+      .eq('status', 'pending')
+      .maybeSingle()
+
+    if (inviteError) {
+      console.error('Error checking existing invitation:', inviteError)
+      return NextResponse.json(
+        { error: 'Failed to check existing invitation' },
+        { status: 500 }
+      )
+    }
+
+    if (existingInvite) {
+      return NextResponse.json(
+        { message: 'Invitation already sent to this user' },
+        { status: 200 }
+      )
+    }
+
+    // Create the invitation
+    const { error: createError } = await supabase
       .from('team_invites')
       .insert({
         team_id: params.teamId,
         email: email,
         status: 'pending'
       })
-      .select()
-      .single()
 
-    if (teamInviteError) {
-      console.error('Error creating team invite record:', teamInviteError)
+    if (createError) {
+      console.error('Error creating invitation:', createError)
       return NextResponse.json(
-        { error: 'Failed to create invitation record' },
+        { error: 'Failed to create invitation' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Invitation sent successfully',
-      inviteId: teamInvite.id
-    })
-  } catch (error: any) {
-    console.error('Error inviting user:', error)
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error in invitation process:', error)
     return NextResponse.json(
-      { error: `Error inviting user: ${error.message}` },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

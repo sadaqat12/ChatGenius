@@ -1,36 +1,40 @@
 import { useState, useCallback } from 'react';
-import type { Message } from '@/types/chat';
+import { Message } from '@/types';
 
 interface ThreadState {
   isOpen: boolean;
-  message?: Message;
+  parentMessage: Message | null;
 }
 
-export function useThread() {
-  const [state, setState] = useState<ThreadState>({
+export const useThread = () => {
+  const [threadState, setThreadState] = useState<ThreadState>({
     isOpen: false,
-    message: undefined
+    parentMessage: null,
   });
 
   const openThread = useCallback((message: Message) => {
-    if (!message.parent_id) {
-      setState({
-        isOpen: true,
-        message
-      });
+    // Validate that we're opening a thread for a parent message
+    if (message.parentId) {
+      console.error('Attempted to open thread for a reply message');
+      return;
     }
+    
+    setThreadState({
+      isOpen: true,
+      parentMessage: message,
+    });
   }, []);
 
   const closeThread = useCallback(() => {
-    setState({
+    setThreadState({
       isOpen: false,
-      message: undefined
+      parentMessage: null,
     });
   }, []);
 
   return {
-    ...state,
+    threadState,
     openThread,
-    closeThread
+    closeThread,
   };
-} 
+}; 

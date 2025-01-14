@@ -22,16 +22,15 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // Refresh session if expired
-    const { data: { session }, error } = await supabase.auth.getSession()
-    
-    if (error) {
-      console.error('Auth error in middleware:', error)
-    }
+    // Refresh session if expired - await this to ensure cookies are set
+    await supabase.auth.getSession()
+
+    // Get the latest session state
+    const { data: { session } } = await supabase.auth.getSession()
 
     // Handle auth routes
     if (session && ['/login', '/signup'].includes(req.nextUrl.pathname)) {
-      return NextResponse.redirect(new URL('/', req.url))
+      return NextResponse.redirect(new URL('/teams', req.url))
     }
 
     // Handle protected routes
@@ -43,7 +42,8 @@ export async function middleware(req: NextRequest) {
     return res
   } catch (error) {
     console.error('Middleware error:', error)
-    return res
+    // On error, redirect to login
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 }
 

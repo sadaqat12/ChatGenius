@@ -11,7 +11,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClientComponentClient<Database>()
+export const supabase = createClientComponentClient<Database>({
+  supabaseUrl,
+  supabaseKey: supabaseAnonKey,
+})
 
 // Test the connection
 supabase.auth.getSession().then(

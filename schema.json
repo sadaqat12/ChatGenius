@@ -1,61 +1,439 @@
-{"tables": [
+{"Current Schema, Policies and Foreign Keys:":[
+  {"Policies" :
+[
   {
-    "table_name": "channel_members",
-    "columns": "channel_id uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nuser_id uuid NOT NULL"
+    "tablename": "channel_members",
+    "policyname": "Channel members can view channel",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
   },
   {
-    "table_name": "channels",
-    "columns": "id uuid NOT NULL DEFAULT uuid_generate_v4()\nname text NOT NULL\ndescription text\nteam_id uuid NOT NULL\nis_private boolean DEFAULT false\ncreated_by uuid NOT NULL\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+    "tablename": "channel_members",
+    "policyname": "Enable read access for team members",
+    "cmd": "SELECT",
+    "roles": "{public}"
   },
   {
-    "table_name": "direct_message_channels",
-    "columns": "id uuid NOT NULL DEFAULT uuid_generate_v4()\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+    "tablename": "channel_members",
+    "policyname": "Service role can manage channel members",
+    "cmd": "ALL",
+    "roles": "{service_role}"
   },
   {
-    "table_name": "direct_message_participants",
-    "columns": "channel_id uuid NOT NULL\nuser_id uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+    "tablename": "channel_members",
+    "policyname": "Users can join channels",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
   },
   {
-    "table_name": "direct_message_reactions",
-    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nemoji text NOT NULL\nuser_id uuid\nmessage_id uuid\nid uuid NOT NULL DEFAULT uuid_generate_v4()"
+    "tablename": "channel_members",
+    "policyname": "Users can leave channels",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
   },
   {
-    "table_name": "direct_messages",
-    "columns": "file jsonb\nsender_id uuid\nchannel_id uuid\ncontent text NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+    "tablename": "channel_members",
+    "policyname": "authenticated_channel_members_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
   },
   {
-    "table_name": "message_reactions",
-    "columns": "user_id uuid NOT NULL\nmessage_id uuid NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nemoji text NOT NULL"
+    "tablename": "channel_members",
+    "policyname": "authenticated_channel_members_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
   },
   {
-    "table_name": "messages",
-    "columns": "parent_id uuid\ntopic text NOT NULL\nextension text NOT NULL\npayload jsonb\nevent text\nprivate boolean DEFAULT false\nupdated_at timestamp without time zone NOT NULL DEFAULT now()\ninserted_at timestamp without time zone NOT NULL DEFAULT now()\nid uuid NOT NULL DEFAULT gen_random_uuid()\nid uuid NOT NULL DEFAULT uuid_generate_v4()\ncontent text NOT NULL\nchannel_id uuid NOT NULL\nuser_id uuid NOT NULL\nfile jsonb\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+    "tablename": "channel_members",
+    "policyname": "service_role_channel_members",
+    "cmd": "ALL",
+    "roles": "{service_role}"
   },
   {
-    "table_name": "reactions",
-    "columns": "id uuid NOT NULL DEFAULT gen_random_uuid()\nmessage_id uuid NOT NULL\nuser_id uuid NOT NULL\ncreated_by uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT now()\nemoji text NOT NULL"
+    "tablename": "channels",
+    "policyname": "Enable read access for team members",
+    "cmd": "SELECT",
+    "roles": "{public}"
   },
   {
-    "table_name": "team_invites",
-    "columns": "status text NOT NULL\nemail text NOT NULL\nteam_id uuid\nupdated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())\nid uuid NOT NULL DEFAULT gen_random_uuid()"
+    "tablename": "channels",
+    "policyname": "Service role can manage channels",
+    "cmd": "ALL",
+    "roles": "{service_role}"
   },
   {
-    "table_name": "team_members",
-    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nuser_id uuid NOT NULL\nteam_id uuid NOT NULL\nrole text NOT NULL DEFAULT 'member'::text"
+    "tablename": "channels",
+    "policyname": "Users can view channels in their teams",
+    "cmd": "SELECT",
+    "roles": "{public}"
   },
   {
-    "table_name": "teams",
-    "columns": "created_by uuid NOT NULL\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ndescription text\nname text NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()"
+    "tablename": "channels",
+    "policyname": "authenticated_channels_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
   },
   {
-    "table_name": "user_profiles",
-    "columns": "user_id uuid NOT NULL\nname text NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()\navatar_url text\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\npending_team_name text"
+    "tablename": "channels",
+    "policyname": "authenticated_channels_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "channels",
+    "policyname": "service_role_channels",
+    "cmd": "ALL",
+    "roles": "{service_role}"
+  },
+  {
+    "tablename": "direct_message_channels",
+    "policyname": "authenticated_dm_channels_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_channels",
+    "policyname": "authenticated_dm_channels_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_participants",
+    "policyname": "Users can leave DM channels",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_participants",
+    "policyname": "Users can view their DM participants",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_participants",
+    "policyname": "authenticated_dm_participants_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_participants",
+    "policyname": "authenticated_dm_participants_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_reactions",
+    "policyname": "Users can remove their DM reactions",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_reactions",
+    "policyname": "Users can view their DM reactions",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_reactions",
+    "policyname": "authenticated_dm_reactions_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_message_reactions",
+    "policyname": "authenticated_dm_reactions_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "Service role can do everything",
+    "cmd": "ALL",
+    "roles": "{service_role}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "Users can send messages to their DM channels",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "Users can view messages in their DM channels",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "authenticated_dm_messages_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "authenticated_dm_messages_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "direct_messages_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "direct_messages_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "direct_messages_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "direct_messages",
+    "policyname": "direct_messages_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "message_reactions",
+    "policyname": "Service role can do everything",
+    "cmd": "ALL",
+    "roles": "{service_role}"
+  },
+  {
+    "tablename": "message_reactions",
+    "policyname": "Users can add reactions to messages they can see",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "message_reactions",
+    "policyname": "Users can remove their own reactions",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "message_reactions",
+    "policyname": "Users can view reactions in their channels",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "message_reactions",
+    "policyname": "Users can view reactions on messages they can see",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "Enable read access for channel members",
+    "cmd": "SELECT",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "Users can view messages in their channels",
+    "cmd": "SELECT",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "authenticated_messages_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "authenticated_messages_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "authenticated_messages_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "authenticated_messages_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "messages",
+    "policyname": "service_role_messages",
+    "cmd": "ALL",
+    "roles": "{service_role}"
+  },
+  {
+    "tablename": "reactions",
+    "policyname": "Enable read access for message viewers",
+    "cmd": "SELECT",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "team_invites",
+    "policyname": "create_team_invites",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_invites",
+    "policyname": "delete_team_invites",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_invites",
+    "policyname": "update_team_invites",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_invites",
+    "policyname": "view_team_invites",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "Enable read access for team members",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "Team members can view team",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "Users can join teams",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "Users can leave teams",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "authenticated_delete",
+    "cmd": "DELETE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "authenticated_insert",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "authenticated_read",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "authenticated_update",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "team_members",
+    "policyname": "service_role_all",
+    "cmd": "ALL",
+    "roles": "{service_role}"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "Service role can manage teams",
+    "cmd": "ALL",
+    "roles": "{service_role}"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_insert",
+    "cmd": "INSERT",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_select",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "teams",
+    "policyname": "teams_update",
+    "cmd": "UPDATE",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Allow profile management",
+    "cmd": "ALL",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Enable read access for authenticated users",
+    "cmd": "SELECT",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Enable read access for user profiles",
+    "cmd": "SELECT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Users can insert own profile",
+    "cmd": "INSERT",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Users can update own profile",
+    "cmd": "UPDATE",
+    "roles": "{authenticated}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Users can update their own profile",
+    "cmd": "UPDATE",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Users can update their own status",
+    "cmd": "UPDATE",
+    "roles": "{public}"
+  },
+  {
+    "tablename": "user_profiles",
+    "policyname": "Users can view all profiles",
+    "cmd": "SELECT",
+    "roles": "{anon,authenticated}"
   }
-],
-"foreign_keys": [
-  {
-    "table_name": "team_invites",
-    "column_name": "team_id",
+]},
+
+{
+  "Foreign Keys": [
+    {
+      "table_name": "team_invites",
+      "column_name": "team_id",
     "foreign_table_name": "teams",
     "foreign_column_name": "id"
   },
@@ -102,13 +480,13 @@
     "foreign_column_name": "id"
   },
   {
-    "table_name": "direct_message_participants",
+    "table_name": "direct_messages",
     "column_name": "channel_id",
     "foreign_table_name": "direct_message_channels",
     "foreign_column_name": "id"
   },
   {
-    "table_name": "direct_messages",
+    "table_name": "direct_message_participants",
     "column_name": "channel_id",
     "foreign_table_name": "direct_message_channels",
     "foreign_column_name": "id"
@@ -119,30 +497,61 @@
     "foreign_table_name": "direct_messages",
     "foreign_column_name": "id"
   }
-],
-"policies": [
+]},
+
+{"Tables":
+[
   {
-    "tablename": "team_invites",
-    "policyname": "Team admins can create invites",
-    "cmd": "INSERT",
-    "roles": "{authenticated}"
+    "table_name": "channel_members",
+    "columns": "channel_id uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nuser_id uuid NOT NULL"
   },
   {
-    "tablename": "team_invites",
-    "policyname": "Team admins can delete invites",
-    "cmd": "DELETE",
-    "roles": "{authenticated}"
+    "table_name": "channels",
+    "columns": "created_by uuid NOT NULL\nis_private boolean DEFAULT false\nid uuid NOT NULL DEFAULT uuid_generate_v4()\nname text NOT NULL\ndescription text\nteam_id uuid NOT NULL\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
   },
   {
-    "tablename": "team_invites",
-    "policyname": "Team admins can update invites",
-    "cmd": "UPDATE",
-    "roles": "{authenticated}"
+    "table_name": "direct_message_channels",
+    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nid uuid NOT NULL DEFAULT uuid_generate_v4()"
   },
   {
-    "tablename": "team_invites",
-    "policyname": "Team admins can view invites",
-    "cmd": "SELECT",
-    "roles": "{authenticated}"
+    "table_name": "direct_message_participants",
+    "columns": "channel_id uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nuser_id uuid NOT NULL"
+  },
+  {
+    "table_name": "direct_message_reactions",
+    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nemoji text NOT NULL\nuser_id uuid\nmessage_id uuid\nid uuid NOT NULL DEFAULT uuid_generate_v4()"
+  },
+  {
+    "table_name": "direct_messages",
+    "columns": "channel_id uuid\ncontent text NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nfile jsonb\nsender_id uuid"
+  },
+  {
+    "table_name": "message_reactions",
+    "columns": "id uuid NOT NULL DEFAULT uuid_generate_v4()\nuser_id uuid NOT NULL\nemoji text NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nmessage_id uuid NOT NULL"
+  },
+  {
+    "table_name": "messages",
+    "columns": "parent_id uuid\ntopic text NOT NULL\nextension text NOT NULL\npayload jsonb\nevent text\nprivate boolean DEFAULT false\nupdated_at timestamp without time zone NOT NULL DEFAULT now()\ninserted_at timestamp without time zone NOT NULL DEFAULT now()\nid uuid NOT NULL DEFAULT gen_random_uuid()\nid uuid NOT NULL DEFAULT uuid_generate_v4()\ncontent text NOT NULL\nchannel_id uuid NOT NULL\nuser_id uuid NOT NULL\nfile jsonb\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "reactions",
+    "columns": "created_at timestamp with time zone DEFAULT now()\nemoji text NOT NULL\nid uuid NOT NULL DEFAULT gen_random_uuid()\nmessage_id uuid NOT NULL\nuser_id uuid NOT NULL\ncreated_by uuid NOT NULL"
+  },
+  {
+    "table_name": "team_invites",
+    "columns": "created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())\nid uuid NOT NULL DEFAULT gen_random_uuid()\nstatus text NOT NULL\nemail text NOT NULL\nteam_id uuid NOT NULL\nupdated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "team_members",
+    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nrole text NOT NULL DEFAULT 'member'::text\nuser_id uuid NOT NULL\nteam_id uuid NOT NULL"
+  },
+  {
+    "table_name": "teams",
+    "columns": "updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_by uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ndescription text\nname text NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()"
+  },
+  {
+    "table_name": "user_profiles",
+    "columns": "pending_team_name text\nstatus_updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\navatar_url text\nname text NOT NULL\nuser_id uuid NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()\nstatus text NOT NULL DEFAULT 'online'::text"
   }
-]} 
+]}
+]}

@@ -35,7 +35,7 @@ export function EmojiReactions({ messageId, reactions = [], show = true }: Emoji
       if (existingReaction) {
         // Remove reaction
         const { error } = await supabase
-          .from('message_reactions')
+          .from('reactions')
           .delete()
           .eq('message_id', messageId)
           .eq('user_id', user.id)
@@ -45,7 +45,7 @@ export function EmojiReactions({ messageId, reactions = [], show = true }: Emoji
       } else {
         // Add reaction
         const { error } = await supabase
-          .from('message_reactions')
+          .from('reactions')
           .insert({
             message_id: messageId,
             user_id: user.id,

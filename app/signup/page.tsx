@@ -9,7 +9,6 @@ import { ChatGeniusHeader } from '@/components/chat-genius-header'
 
 export default function SignUpPage() {
   const [name, setName] = useState('')
-  const [teamName, setTeamName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -42,7 +41,6 @@ export default function SignUpPage() {
         .upsert({
           user_id: data.user.id,
           name: name,
-          pending_team_name: teamName || `${name}'s Team`,
         }, {
           onConflict: 'user_id'
         })
@@ -50,7 +48,7 @@ export default function SignUpPage() {
       if (profileError) throw profileError
 
       // Show success message and redirect to login
-      alert('Please check your email to confirm your account. After confirming, sign in to complete your team setup.')
+      alert('Please check your email to confirm your account. After confirming, sign in to complete your account setup.')
       router.push('/login')
     } catch (err) {
       console.error('Signup error:', err)
@@ -84,21 +82,6 @@ export default function SignUpPage() {
                 required
                 placeholder="Enter your name"
               />
-            </div>
-            <div>
-              <label htmlFor="teamName" className="block text-sm font-medium mb-2">
-                Team Name (Optional)
-              </label>
-              <Input
-                id="teamName"
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Enter your team name"
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Leave blank to use "{name}'s Team"
-              </p>
             </div>
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-2">

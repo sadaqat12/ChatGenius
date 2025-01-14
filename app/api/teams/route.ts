@@ -1,65 +1,21 @@
-import { createServerClient } from '@supabase/ssr'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const cookieStore = cookies()
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  )
-
   try {
     const { name } = await request.json()
     
+    // Create a Supabase client for the route handler
+    const supabase = createRouteHandlerClient({ cookies })
+    
     // Get the current user
     const { data: { session }, error: authError } = await supabase.auth.getSession()
-    if (authError) {
-      console.error('Auth error:', authError)
-      return NextResponse.json(
-        { error: 'Authentication error: ' + authError.message },
-        { status: 401 }
-      )
-    }
-    if (!session) {
-      console.error('No session found')
+    if (authError || !session) {
+      console.error('Auth error:', authError || 'No session found')
       return NextResponse.json(
         { error: 'Not authenticated. Please sign in.' },
         { status: 401 }
-      )
-    }
-
-    console.log('Creating team with:', {
-      team_name: name,
-      user_id: session.user.id
-    })
-
-    // First check if the user exists in auth.users
-    const { data: userExists, error: userCheckError } = await supabase
-      .from('auth.users')
-      .select('id')
-      .eq('id', session.user.id)
-      .single()
-
-    if (userCheckError) {
-      console.error('User check error:', userCheckError)
-      return NextResponse.json(
-        { error: 'Failed to verify user: ' + userCheckError.message },
-        { status: 500 }
       )
     }
 
