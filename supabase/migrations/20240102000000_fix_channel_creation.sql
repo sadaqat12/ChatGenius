@@ -18,8 +18,8 @@ BEGIN
   VALUES (new_team_id, user_id, 'owner');
 
   -- Create the general channel with proper created_by field
-  INSERT INTO channels (team_id, name, type, created_by, is_private)
-  VALUES (new_team_id, 'general', 'public', user_id, false)
+  INSERT INTO channels (team_id, name, created_by, is_private)
+  VALUES (new_team_id, 'general', user_id, false)
   RETURNING id INTO new_channel_id;
 
   -- Add the user to the channel

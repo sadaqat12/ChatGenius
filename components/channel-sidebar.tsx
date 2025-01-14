@@ -21,15 +21,15 @@ interface ChannelSidebarProps {
 }
 
 interface UserProfile {
-  name: string;
+  name: string | null;
 }
 
 interface User {
   id: string;
   email: string;
-  name: string;
-  avatar_url?: string;
-  user_profiles: UserProfile[];
+  user_profiles: {
+    name: string | null;
+  };
 }
 
 interface TeamMemberResponse {
@@ -41,9 +41,9 @@ interface TeamMemberResponse {
 interface DirectMessageUser {
   id: string;
   email: string;
-  name: string;
-  avatar_url?: string;
-  user_profiles: UserProfile[];
+  user_profiles: {
+    name: string | null;
+  };
 }
 
 interface DirectMessageParticipant {
@@ -57,9 +57,9 @@ interface RawTeamMember {
   users: {
     id: string;
     email: string;
-    user_profiles: Array<{
-      name: string;
-    }>;
+    user_profiles: {
+      name: string | null;
+    };
   };
 }
 
@@ -170,21 +170,17 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
 
       // Check if DM channel already exists between these users
       const { data: existingChannels, error: channelError } = await supabase
-        .from('direct_message_channels')
+        .from('direct_message_participants')
         .select(`
-          id,
-          participants:direct_message_participants!inner (
-            user_id,
-            user:users!inner (
-              id,
-              email,
-              user_profiles (
-                name
-              )
+          channel_id,
+          channel:direct_message_channels!inner (
+            id,
+            participants:direct_message_participants!inner (
+              user_id
             )
           )
         `)
-        .eq('participants.user_id', user.id);
+        .eq('user_id', user.id);
 
       if (channelError) {
         console.error('Error checking existing channels:', channelError);
@@ -198,12 +194,12 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
 
       // Find a channel where both users are participants
       const existingChannel = existingChannels?.find(channel => {
-        const participantIds = channel.participants.map(p => p.user_id);
+        const participantIds = channel.channel.participants.map(p => p.user_id);
         return participantIds.includes(otherUserId);
       });
 
       if (existingChannel) {
-        onChannelSelect(existingChannel.id, 'dm');
+        onChannelSelect(existingChannel.channel.id, 'dm');
         setIsDialogOpen(false);
         return;
       }
@@ -270,7 +266,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
         users:users!team_members_user_id_fkey (
           id,
           email,
-          user_profiles (
+          user_profiles!inner (
             name
           )
         )
@@ -312,7 +308,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
     }
 
     const buttons = validMembers.map((member) => ({
-      label: member.users.user_profiles?.[0]?.name || member.users.email || 'Unknown User',
+      label: member.users.user_profiles?.name || member.users.email || 'Unknown User',
       onClick: () => createDirectMessage(member.user_id),
     }));
 
@@ -322,9 +318,12 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
 
   const getOtherParticipant = (channel: typeof dmChannels[0]) => {
     const otherParticipant = channel.participants.find(p => p.user_id !== user?.id);
+    
     if (!otherParticipant?.user) return 'Unknown User';
     
-    return otherParticipant.user.name || otherParticipant.user.email || 'Unknown User';
+    const profileName = otherParticipant.user.user_profiles?.name;
+    
+    return profileName || otherParticipant.user.email || 'Unknown User';
   }
 
   return (

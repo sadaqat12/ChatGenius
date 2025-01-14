@@ -87,10 +87,10 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
               status
             )
           ),
-          reactions:message_reactions (
+          reactions:reactions!message_id (
             id,
             emoji,
-            user:users (
+            user:users!user_id (
               id,
               email,
               user_profiles (
@@ -282,7 +282,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
         {
           event: '*',
           schema: 'public',
-          table: 'message_reactions',
+          table: 'reactions',
           filter: `message_id=in.(${messages.map(m => m.id).join(',')})`
         },
         async () => {
@@ -346,7 +346,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
 
     try {
       const { error } = await supabase
-        .from('message_reactions')
+        .from('reactions')
         .insert({
           message_id: messageId,
           user_id: user.id,
@@ -365,7 +365,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
 
     try {
       const { error } = await supabase
-        .from('message_reactions')
+        .from('reactions')
         .delete()
         .eq('message_id', messageId)
         .eq('user_id', user.id)

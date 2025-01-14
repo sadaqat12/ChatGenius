@@ -45,16 +45,39 @@ export function TeamSidebar({ teamId }: TeamSidebarProps) {
   }, [user])
 
   const fetchTeams = async () => {
+    if (!user) return
+    
     try {
-      const { data: teams, error } = await supabase
+      // First get the user's team memberships
+      const { data: memberships, error: membershipError } = await supabase
+        .from('team_members')
+        .select('team_id')
+        .eq('user_id', user.id)
+
+      if (membershipError) throw membershipError
+
+      if (!memberships || memberships.length === 0) {
+        setTeams([])
+        return
+      }
+
+      // Then fetch the teams using the team IDs
+      const teamIds = memberships.map(m => m.team_id)
+      const { data: teams, error: teamsError } = await supabase
         .from('teams')
         .select('*')
+        .in('id', teamIds)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (teamsError) throw teamsError
       setTeams(teams || [])
     } catch (error) {
       console.error('Error fetching teams:', error)
+      toast({
+        title: "Error fetching teams",
+        description: "Please try again later",
+        variant: "destructive",
+      })
     }
   }
 

@@ -27,32 +27,42 @@ export function InviteMembersDialog({ teamId, onInviteSent }: InviteMembersDialo
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-
+    
     try {
+      setLoading(true)
       const response = await fetch(`/api/teams/${teamId}/invitations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to send invitation')
+        toast({
+          title: "Cannot Send Invitation",
+          description: data.error || 'Failed to send invitation. Please try again.',
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
       }
 
+      // Handle success case, including when user already has a pending invite
+      const message = data.message || "We've sent an invitation to " + email
       toast({
-        title: "Invitation sent!",
-        description: `We've sent an invitation to ${email}`,
+        title: "Success",
+        description: message,
       })
       
       setEmail('')
       setOpen(false)
       onInviteSent?.()
     } catch (error) {
+      console.error('Invitation error:', error)
       toast({
-        title: "Failed to send invitation",
-        description: error instanceof Error ? error.message : 'Please try again',
+        title: "Cannot Send Invitation",
+        description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
         variant: "destructive",
       })
     } finally {
@@ -60,8 +70,16 @@ export function InviteMembersDialog({ teamId, onInviteSent }: InviteMembersDialo
     }
   }
 
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen)
+    if (!newOpen) {
+      setEmail('')
+      setLoading(false)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline">Invite Members</Button>
       </DialogTrigger>
@@ -69,7 +87,7 @@ export function InviteMembersDialog({ teamId, onInviteSent }: InviteMembersDialo
         <DialogHeader>
           <DialogTitle>Invite team members</DialogTitle>
           <DialogDescription>
-            Send invitations to your teammates. They'll receive an email with instructions to join.
+            Invite existing users to your team. New users must create an account before they can be invited.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleInvite} className="space-y-4">
@@ -84,10 +102,16 @@ export function InviteMembersDialog({ teamId, onInviteSent }: InviteMembersDialo
               onChange={(e) => setEmail(e.target.value)}
               placeholder="colleague@company.com"
               required
+              disabled={loading}
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => handleOpenChange(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>

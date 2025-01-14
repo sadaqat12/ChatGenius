@@ -152,12 +152,17 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         body: JSON.stringify({ email: inviteEmail.toLowerCase() })
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to send invitation');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Failed to invite user",
+          description: data.error || 'Failed to send invitation',
+          variant: "destructive",
+        })
+        setInviting(false)
+        return
+      }
       
       // Handle both new invitations and existing ones
       const message = data.message || 'An invitation has been sent';
@@ -250,8 +255,12 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Invite Users</DialogTitle>
-                  <DialogDescription>
-                    Invite users to join your team. They will receive an email invitation.
+                  <DialogDescription className="space-y-2">
+                    <p>Invite users to join your team.</p>
+                    <div className="text-red-500 space-y-1">
+                      <p className="font-medium">Note: Users must already have an account on the app to receive invites.</p>
+                      <p className="text-sm">Once they sign up, you can invite them and they will see the invitation on their dashboard.</p>
+                    </div>
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleInviteUser}>
