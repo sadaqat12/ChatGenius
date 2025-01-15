@@ -1,0 +1,783 @@
+[
+    {
+        "id": 1879264658076709336,
+        "date": "2025-01-14 20:29:44+00:00",
+        "text": "@turing_hamster Insane",
+        "metrics": {
+            "likes": 2,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "turing_hamster"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879264604272164876,
+        "date": "2025-01-14 20:29:31+00:00",
+        "text": "It picked up the \"ah/uh\" I've been trying to kill.\n\nDamnit.",
+        "metrics": {
+            "likes": 4,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879264236343533866,
+        "date": "2025-01-14 20:28:03+00:00",
+        "text": "@turing_hamster what did you train the voice on?",
+        "metrics": {
+            "likes": 1,
+            "retweets": 0,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "turing_hamster"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879263958626091084,
+        "date": "2025-01-14 20:26:57+00:00",
+        "text": "Holy. Hell.\n\nIt even has my weird speaking inflection that I picked up by speaking Russian for a couple years. https://t.co/90rVZgCSaZ",
+        "metrics": {
+            "likes": 9,
+            "retweets": 0,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/turing_hamster/status/1879263082163405053"
+        ]
+    },
+    {
+        "id": 1879257547775095022,
+        "date": "2025-01-14 20:01:28+00:00",
+        "text": "startBackdoorIfNeeded https://t.co/MBMylCurLn",
+        "metrics": {
+            "likes": 17,
+            "retweets": 0,
+            "replies": 4,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/d0tslash/status/1878959715033694492"
+        ]
+    },
+    {
+        "id": 1879248187002937839,
+        "date": "2025-01-14 19:24:17+00:00",
+        "text": "Setting up Raycast on my Mac not because I'm a power user but because Spotlight is deteriorating so rapidly",
+        "metrics": {
+            "likes": 15,
+            "retweets": 0,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879244384509784145,
+        "date": "2025-01-14 19:09:10+00:00",
+        "text": "@x_rondo1 Sometimes they end up in a pocket or a kid pulls them out or my wife borrows them or or or",
+        "metrics": {
+            "likes": 0,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "x_rondo1"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879242185020965095,
+        "date": "2025-01-14 19:00:26+00:00",
+        "text": "@RandomMannnnnn I have two sets and my wife has a set and they all get mixed up",
+        "metrics": {
+            "likes": 0,
+            "retweets": 0,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "RandomMannnnnn"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879241850927866232,
+        "date": "2025-01-14 18:59:06+00:00",
+        "text": "I want an app that will help me figure out which Airpods go together and with which cases.\n\nI may be the only person who struggles with this but I don't think I am.",
+        "metrics": {
+            "likes": 7,
+            "retweets": 0,
+            "replies": 10,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879239669936009392,
+        "date": "2025-01-14 18:50:26+00:00",
+        "text": "@leveragedupside @sama No, Devin is the name of the student :) \n\nHe shares tools he used in that thread",
+        "metrics": {
+            "likes": 1,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "leveragedupside",
+            "sama"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879235261135208805,
+        "date": "2025-01-14 18:32:55+00:00",
+        "text": "1 minute demo!\n\nSee how Devin built out a smart AI avatar (based on data from @sama), deployed to his Slack clone.\n\nTime to build Slack clone: 1 week. (MVP in 24 hours.)\n\nTime to build AI avatar: 24 hours. https://t.co/eCxOHDPeyN",
+        "metrics": {
+            "likes": 22,
+            "retweets": 10,
+            "replies": 10,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "sama"
+        ],
+        "urls": [
+            "https://twitter.com/dpigera/status/1879231540405907907"
+        ]
+    },
+    {
+        "id": 1879232315043528823,
+        "date": "2025-01-14 18:21:13+00:00",
+        "text": "Hey Cursor team - we've got 140 engineers spending 10+ hours/day using Cursor (we've got Pro accounts for all of them).\n\nWould love to have someone from your team join us for a virtual Zoom dinner, and let our students pepper them with tons of questions.\n\nDMs open.",
+        "metrics": {
+            "likes": 101,
+            "retweets": 0,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879220170507563301,
+        "date": "2025-01-14 17:32:57+00:00",
+        "text": "@wilschroter Its entry level and you work up from there",
+        "metrics": {
+            "likes": 3,
+            "retweets": 0,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "wilschroter"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879218091810496893,
+        "date": "2025-01-14 17:24:41+00:00",
+        "text": "Making $70k/yr in a solid job at age 22 is more than enough to have your own place and is absolutely winning.\n\nAt that age I had an internship that paid like $800/month.\n\nThe goalpost moving is wild. https://t.co/wE4afGF1Oz",
+        "metrics": {
+            "likes": 107,
+            "retweets": 1,
+            "replies": 12,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/soulofpetronius/status/1879024216399544502"
+        ]
+    },
+    {
+        "id": 1879213951948607877,
+        "date": "2025-01-14 17:08:14+00:00",
+        "text": "I can see why people are so adamant that public school is the only way when their understanding of what schooling is like is so wrong.\n\nThe teacher must be an absolute expert and know much more than what’s in the book?\n\nSome of my teachers could barely read the book. https://t.co/Z0dGtlsxjZ",
+        "metrics": {
+            "likes": 41,
+            "retweets": 0,
+            "replies": 12,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/knowingbetteryt/status/1878934359681749411"
+        ]
+    },
+    {
+        "id": 1879212359987925179,
+        "date": "2025-01-14 17:01:55+00:00",
+        "text": "@bsierakowski Well yeah",
+        "metrics": {
+            "likes": 1,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "bsierakowski"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879212059944235416,
+        "date": "2025-01-14 17:00:43+00:00",
+        "text": "This is absolutely true except for the fact that they have wires https://t.co/WmYCxJrVAl",
+        "metrics": {
+            "likes": 39,
+            "retweets": 1,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/thejackforge/status/1878857711338848679"
+        ]
+    },
+    {
+        "id": 1879209641244233901,
+        "date": "2025-01-14 16:51:07+00:00",
+        "text": "The parts of going to school for education that really matter are learning how to deal with a giant classroom of kids at all different levels.\n\nHow do you accommodate for that while teaching one lesson?\n\nHow do you keep 30 rowdy third-graders in control?\n\nHow do you assess?",
+        "metrics": {
+            "likes": 9,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879208388019851698,
+        "date": "2025-01-14 16:46:08+00:00",
+        "text": "Yes there are developmental guidelines, as in “generally kids won’t understand x until age y.” \n\nThen that will be true for like 60% of the kids, and every kid is all over the map.",
+        "metrics": {
+            "likes": 17,
+            "retweets": 0,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879208386274971861,
+        "date": "2025-01-14 16:46:07+00:00",
+        "text": "I say this as someone who admires teachers. My wife was a public school teacher.\n\nThey do not understand the stage a child is at from being in a classroom better than an attentive parent.\n\nAnd if you introduce negative numbers to a child and they don’t get it you can just wait. https://t.co/BhgcE7zUP4",
+        "metrics": {
+            "likes": 85,
+            "retweets": 3,
+            "replies": 6,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/knowingbetteryt/status/1878934361682436549"
+        ]
+    },
+    {
+        "id": 1879195614908674072,
+        "date": "2025-01-14 15:55:23+00:00",
+        "text": "@bsierakowski 0% chance",
+        "metrics": {
+            "likes": 5,
+            "retweets": 0,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "bsierakowski"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879194912505417915,
+        "date": "2025-01-14 15:52:35+00:00",
+        "text": "I’m glad Americans are trying out RedNote.\n\nWith any luck they’ll share viewpoints from a generic liberal worldview and start getting censored almost immediately.",
+        "metrics": {
+            "likes": 84,
+            "retweets": 2,
+            "replies": 10,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879190671384515006,
+        "date": "2025-01-14 15:35:44+00:00",
+        "text": "If you thought Bernie Sanders would have won in Utah I have a bridge to sell you https://t.co/6KiSIFqcTY",
+        "metrics": {
+            "likes": 66,
+            "retweets": 1,
+            "replies": 8,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/2stupid2idoit/status/1878949205450047974"
+        ]
+    },
+    {
+        "id": 1879061822269206920,
+        "date": "2025-01-14 07:03:44+00:00",
+        "text": "@willroman @ChisosBoots Man you got any boots I would feel like an absolute poser wearing?",
+        "metrics": {
+            "likes": 3,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "willroman",
+            "ChisosBoots"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879061678496837991,
+        "date": "2025-01-14 07:03:10+00:00",
+        "text": "@parsnips451 He seems pretty strongly ex Mormon haha",
+        "metrics": {
+            "likes": 9,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "parsnips451"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879060606533472401,
+        "date": "2025-01-14 06:58:54+00:00",
+        "text": "Hey xAI / Grok team:\n\nWe’re flying ~140 engineers to Austin in Feb as a part of a 12-wk super intense (100 hrs/week) training to build with AI.\n\nWould any of you be interested in being a guest speaker while we ask you a few questions?\n\nRemote or at our place (by capitol bldg)",
+        "metrics": {
+            "likes": 105,
+            "retweets": 4,
+            "replies": 9,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879057844940783623,
+        "date": "2025-01-14 06:47:56+00:00",
+        "text": "@kevinhou22 See https://t.co/MGgjXfH6PS or look at what they’re building @joingauntletai. My DMs are open.",
+        "metrics": {
+            "likes": 0,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "kevinhou22",
+            "joingauntletai"
+        ],
+        "urls": [
+            "http://GauntletAI.com"
+        ]
+    },
+    {
+        "id": 1879057712094511439,
+        "date": "2025-01-14 06:47:24+00:00",
+        "text": "@kevinhou22 Hey Kevin,\n\nWe’ve got a group of 140 engineers we’re flying out to Austin for two months to study AI. Super intense @ 80-100 hrs/week, all expenses paid.\n\nBought everyone cursor pro, but a few are bailing to windsurf.\n\nWould you or someone on team be willing to do a 1 hr virtual… https://t.co/pc9J4zjb6d",
+        "metrics": {
+            "likes": 23,
+            "retweets": 0,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "kevinhou22"
+        ],
+        "urls": [
+            "https://x.com/i/web/status/1879057712094511439"
+        ]
+    },
+    {
+        "id": 1879056848575516740,
+        "date": "2025-01-14 06:43:58+00:00",
+        "text": "It’s not enough for us to train another set of engineers.\n\nWe have to help students become superbuilders.\n\nAI + raw intelligence + work ethic.",
+        "metrics": {
+            "likes": 19,
+            "retweets": 0,
+            "replies": 4,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879053510026879123,
+        "date": "2025-01-14 06:30:42+00:00",
+        "text": "And beyond that a level of camaraderie starts to form.\n\nWhen you have folks driving with extreme vigor toward the same goal at high speed and learning together… they get each other differently.\n\nAnd in a few weeks we all get to meet each other!",
+        "metrics": {
+            "likes": 15,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879052945490313443,
+        "date": "2025-01-14 06:28:27+00:00",
+        "text": "What we ask of students is unreasonable for many. Impossible for some. Definitely not for everyone.\n\n But we think that if you take very high levels of intelligence and combine it with extremely hard work and AI magical things happen.\n\nWe’re already seeing it.\n\nOnly first week.",
+        "metrics": {
+            "likes": 19,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879052201462764002,
+        "date": "2025-01-14 06:25:30+00:00",
+        "text": "GauntletAI is living up to its name.\n\nHad more than 3,000 applicants.\n\n218 enrolled.\n\nAfter one week of super intense building 140 are left.\n\nThose folks are very special. Work ethic is insane. Some putting in 18-hour days.\n\nMost of those left will make it to the $200k/yr jobs.",
+        "metrics": {
+            "likes": 102,
+            "retweets": 6,
+            "replies": 14,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879047530119668101,
+        "date": "2025-01-14 06:06:56+00:00",
+        "text": "“Austen what do you have against the notion of people buying giant gross cookies for $4 ea? Didn’t you know it’s a franchise model?”\n\nExactly",
+        "metrics": {
+            "likes": 28,
+            "retweets": 0,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879047108340453873,
+        "date": "2025-01-14 06:05:16+00:00",
+        "text": "I wish Crumbl were public so I could short it",
+        "metrics": {
+            "likes": 219,
+            "retweets": 3,
+            "replies": 25,
+            "quotes": 1
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879041168450953699,
+        "date": "2025-01-14 05:41:40+00:00",
+        "text": "Wait until you hear how risk averse his investments were after that https://t.co/OGfxILPbzd",
+        "metrics": {
+            "likes": 242,
+            "retweets": 0,
+            "replies": 14,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/marshal/status/1878913603442716677"
+        ]
+    },
+    {
+        "id": 1879018289453727848,
+        "date": "2025-01-14 04:10:45+00:00",
+        "text": "@shoughtonjr @dpigera Spend the next few months getting somewhat technical and join us in the summer.\n\nhttps://t.co/waeKOrz7Zy",
+        "metrics": {
+            "likes": 1,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "shoughtonjr",
+            "dpigera"
+        ],
+        "urls": [
+            "http://Gauntletai.com"
+        ]
+    },
+    {
+        "id": 1879018046330941503,
+        "date": "2025-01-14 04:09:47+00:00",
+        "text": "* Video synthesis - deliver messages via synthesized video\n\n* Gesture/expression generation - enable more sophisticated expression by AI avatar.\n\nWe're on day 8 of 91. Can't wait to see what they'll do from here.",
+        "metrics": {
+            "likes": 1,
+            "retweets": 1,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879018045328511189,
+        "date": "2025-01-14 04:09:47+00:00",
+        "text": "Other ways GauntletAI students are extending their apps:\n\n* Auto-chat as user: Send communication on behalf of the user (context-aware from other content, including on Slack)\n\n* Voice synthesis - deliver messages in clone of user via synthesized voice",
+        "metrics": {
+            "likes": 4,
+            "retweets": 1,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1879016583022211124,
+        "date": "2025-01-14 04:03:58+00:00",
+        "text": "A few hours after learning about RAG, vector databases, embeddings, Ragfusion, and similarity search.\n\nWe've already got basic AI agents embedded as users into the Slack clones we built last week.\n\nEight days ago there were 0 lines of code written. https://t.co/zuhUYTuemq",
+        "metrics": {
+            "likes": 44,
+            "retweets": 11,
+            "replies": 11,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://x.com/Austen/status/1879016583022211124/photo/1"
+        ]
+    },
+    {
+        "id": 1879010211870187580,
+        "date": "2025-01-14 03:38:39+00:00",
+        "text": "@kylejeong21 @UCLA https://t.co/MGgjXfH6PS - next cohort summer",
+        "metrics": {
+            "likes": 17,
+            "retweets": 0,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "kylejeong21",
+            "UCLA"
+        ],
+        "urls": [
+            "http://GauntletAI.com"
+        ]
+    },
+    {
+        "id": 1879009008872534335,
+        "date": "2025-01-14 03:33:52+00:00",
+        "text": "@ItsHoagie People messing around with bots",
+        "metrics": {
+            "likes": 17,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "ItsHoagie"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1879007073452867929,
+        "date": "2025-01-14 03:26:11+00:00",
+        "text": "Lmfao https://t.co/nAnkOMg1wi",
+        "metrics": {
+            "likes": 136,
+            "retweets": 3,
+            "replies": 9,
+            "quotes": 1
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://x.com/Austen/status/1879007073452867929/photo/1",
+            "https://x.com/Austen/status/1879007073452867929/photo/1"
+        ]
+    },
+    {
+        "id": 1879005956912398700,
+        "date": "2025-01-14 03:21:45+00:00",
+        "text": "Stop making Lion King remakes and make a Diamond Age movie you cowards",
+        "metrics": {
+            "likes": 112,
+            "retweets": 5,
+            "replies": 9,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1878988070797897830,
+        "date": "2025-01-14 02:10:40+00:00",
+        "text": "“You’re not always going to have a calculator in your pocket when you grow up” https://t.co/s6F5IN2qtl",
+        "metrics": {
+            "likes": 1774,
+            "retweets": 87,
+            "replies": 55,
+            "quotes": 8
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://twitter.com/mrsiipa/status/1878758596982575316"
+        ]
+    },
+    {
+        "id": 1878987707785019887,
+        "date": "2025-01-14 02:09:14+00:00",
+        "text": "@kylejeong21 @UCLA You should come do GauntletAI",
+        "metrics": {
+            "likes": 55,
+            "retweets": 0,
+            "replies": 1,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "kylejeong21",
+            "UCLA"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1878987304414658774,
+        "date": "2025-01-14 02:07:37+00:00",
+        "text": "@jj_brooks14 Ah, was gonna ask for golf course recs haha",
+        "metrics": {
+            "likes": 1,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "jj_brooks14"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1878963404842672328,
+        "date": "2025-01-14 00:32:39+00:00",
+        "text": "@jpatapoff Hard to say. I originally thought 75% would make it but is going to be lower than that.",
+        "metrics": {
+            "likes": 1,
+            "retweets": 0,
+            "replies": 2,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "jpatapoff"
+        ],
+        "urls": []
+    },
+    {
+        "id": 1878959419544973752,
+        "date": "2025-01-14 00:16:49+00:00",
+        "text": "When Bryan Johnson got started with his don’t die schtick I thought it was super annoying.\n\nThen as I realized it wasn’t a schtick and he was really all in on it I really grew to like it.",
+        "metrics": {
+            "likes": 999,
+            "retweets": 11,
+            "replies": 89,
+            "quotes": 6
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": []
+    },
+    {
+        "id": 1878931000241307956,
+        "date": "2025-01-13 22:23:53+00:00",
+        "text": "I love my job https://t.co/z1DgwASkE0",
+        "metrics": {
+            "likes": 26,
+            "retweets": 2,
+            "replies": 3,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [],
+        "urls": [
+            "https://x.com/Austen/status/1878931000241307956/photo/1"
+        ]
+    },
+    {
+        "id": 1878902501099098573,
+        "date": "2025-01-13 20:30:39+00:00",
+        "text": "@noah_eacc Not sure to be honest",
+        "metrics": {
+            "likes": 7,
+            "retweets": 0,
+            "replies": 0,
+            "quotes": 0
+        },
+        "hashtags": [],
+        "mentions": [
+            "noah_eacc"
+        ],
+        "urls": []
+    }
+]

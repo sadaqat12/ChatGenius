@@ -11,10 +11,8 @@ export async function middleware(req: NextRequest) {
     if (req.nextUrl.pathname === '/auth/callback') {
       const requestUrl = new URL(req.url)
       const code = requestUrl.searchParams.get('code')
-      const next = requestUrl.searchParams.get('next')
       const token = requestUrl.searchParams.get('token')
       const type = requestUrl.searchParams.get('type')
-      const invitation = requestUrl.searchParams.get('invitation')
 
       // If we have auth parameters, let the callback handle it
       if (code || (token && type === 'invite')) {
@@ -22,10 +20,7 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // Refresh session if expired - await this to ensure cookies are set
-    await supabase.auth.getSession()
-
-    // Get the latest session state
+    // Get session state - only check once
     const { data: { session } } = await supabase.auth.getSession()
 
     // Handle auth routes

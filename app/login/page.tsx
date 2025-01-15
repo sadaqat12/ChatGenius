@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastAttempt, setLastAttempt] = useState<number>(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -24,7 +25,17 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Check if enough time has passed since last attempt (3 seconds)
+    const now = Date.now()
+    if (now - lastAttempt < 3000) {
+      setError('Please wait a few seconds before trying again')
+      return
+    }
+    
+    setLastAttempt(now)
     console.log('Login attempt started')
+    
     try {
       setLoading(true)
       setError(null)
@@ -36,7 +47,13 @@ export default function LoginPage() {
       })
 
       console.log('Sign in response:', { data, error })
-      if (error) throw error
+      
+      if (error) {
+        if (error.message.includes('rate limit')) {
+          throw new Error('Too many login attempts. Please wait a minute before trying again.')
+        }
+        throw error
+      }
 
       if (data.session) {
         console.log('Login successful, redirecting to /teams')
