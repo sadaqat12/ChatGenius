@@ -10,6 +10,8 @@ interface EmojiReactionsProps {
   messageId: string
   reactions: ReactionType[]
   show?: boolean
+  onReactionClick: (emoji: string) => Promise<void>
+  currentUserId?: string
 }
 
 const emojiOptions = [
@@ -20,44 +22,15 @@ const emojiOptions = [
   { emoji: '😠', icon: Angry },
 ]
 
-export function EmojiReactions({ messageId, reactions = [], show = true }: EmojiReactionsProps) {
+export function EmojiReactions({ messageId, reactions = [], show = true, onReactionClick, currentUserId }: EmojiReactionsProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { user } = useAuth()
 
   const handleReact = async (emoji: string) => {
-    if (!user) return
-
     try {
-      const existingReaction = reactions.find(r => 
-        r.emoji === emoji && r.users.some(u => u.id === user.id)
-      )
-
-      if (existingReaction) {
-        // Remove reaction
-        const { error } = await supabase
-          .from('reactions')
-          .delete()
-          .eq('message_id', messageId)
-          .eq('user_id', user.id)
-          .eq('emoji', emoji)
-
-        if (error) throw error
-      } else {
-        // Add reaction
-        const { error } = await supabase
-          .from('reactions')
-          .insert({
-            message_id: messageId,
-            user_id: user.id,
-            emoji
-          })
-
-        if (error) throw error
-      }
+      await onReactionClick(emoji)
     } catch (error) {
       console.error('Error handling reaction:', error)
     }
-
     setIsOpen(false)
   }
 
@@ -67,7 +40,7 @@ export function EmojiReactions({ messageId, reactions = [], show = true }: Emoji
     <div className="flex space-x-2 mt-2">
       {reactions.map((reaction) => {
         const EmojiIcon = emojiOptions.find(option => option.emoji === reaction.emoji)?.icon || Smile
-        const hasReacted = user && reaction.users.some(u => u.id === user.id)
+        const hasReacted = currentUserId && reaction.users.some(u => u.id === currentUserId)
         return (
           <Button
             key={reaction.emoji}

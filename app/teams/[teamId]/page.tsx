@@ -8,7 +8,7 @@ import { SearchBar } from "@/components/search-bar"
 import { supabase } from '@/lib/supabase'
 
 export type ActiveChat = {
-  type: 'channel' | 'directMessage' | 'ai'
+  type: 'channel' | 'dm' | 'ai'
   id: string
   name: string
   threadId?: string
@@ -71,9 +71,9 @@ export default function TeamPage({ params }: { params: { teamId: string } }) {
                 id: channelId, 
                 name: channel?.name || 'Unknown Channel'
               })
-            } else if (type === 'directMessage') {
+            } else if (type === 'dm') {
               setActiveChat({ 
-                type: 'directMessage', 
+                type: 'dm', 
                 id: channelId, 
                 name: 'Direct Message'
               })
