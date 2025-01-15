@@ -9,22 +9,23 @@ type DbResult<T> = T extends PromiseLike<infer U> ? U : never
 type DbResultOk<T> = DbResult<T> extends { data: infer U } ? U : never
 
 interface UserProfile {
-  name: string;
+  name: string | null;
+  avatar_url: string | null;
+  status: string | null;
 }
 
 interface User {
   id: string;
   email: string;
-  name: string;
-  avatar_url?: string;
+  name: string | null;
+  avatar_url: string | null;
+  status: string | null;
   user_profiles: UserProfile[];
 }
 
 interface RawUser {
   id: string;
   email: string;
-  name: string;
-  avatar_url: string | null;
   user_profiles: UserProfile[];
 }
 
@@ -68,21 +69,23 @@ interface DirectMessageChannel {
   participants: DirectMessageParticipant[];
 }
 
-interface RawChannel {
+interface SupabaseParticipant {
+  user_id: string;
+  user: {
+    id: string;
+    email: string;
+    user_profiles: {
+      name: string | null;
+      avatar_url: string | null;
+      status: string | null;
+    }[];
+  };
+}
+
+interface SupabaseChannel {
   id: string;
   created_at: string;
-  participants: {
-    user_id: string;
-    user: {
-      id: string;
-      email: string;
-      name: string;
-      avatar_url: string | null;
-      user_profiles: {
-        name: string;
-      }[];
-    };
-  }[];
+  participants: SupabaseParticipant[];
 }
 
 interface DirectMessage {
@@ -115,41 +118,6 @@ export function useDirectMessages() {
     }
   }, [user])
 
-  useEffect(() => {
-    if (activeChannelId) {
-      fetchMessages(activeChannelId)
-      
-      // Subscribe to new messages
-      const channel = supabase
-        .channel(`dm:${activeChannelId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'direct_messages',
-            filter: `channel_id=eq.${activeChannelId}`
-          },
-          (payload) => {
-            if (payload.eventType === 'INSERT') {
-              const newMessage = payload.new as DirectMessage
-              setMessages(prev => [...prev, newMessage])
-            } else if (payload.eventType === 'UPDATE') {
-              const updatedMessage = payload.new as DirectMessage
-              setMessages(prev => prev.map(msg => 
-                msg.id === updatedMessage.id ? updatedMessage : msg
-              ))
-            }
-          }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
-    }
-  }, [activeChannelId])
-
   const fetchChannels = async () => {
     try {
       const { data: channelsData, error: channelsError } = await supabase
@@ -157,15 +125,15 @@ export function useDirectMessages() {
         .select(`
           id,
           created_at,
-          participants:direct_message_participants!inner(
+          participants:direct_message_participants!inner (
             user_id,
-            user:users!inner(
+            user:users!inner (
               id,
               email,
-              name,
-              avatar_url,
-              user_profiles (
-                name
+              profile:user_profiles!inner (
+                name,
+                avatar_url,
+                status
               )
             )
           )
@@ -174,18 +142,31 @@ export function useDirectMessages() {
 
       if (channelsError) throw channelsError
 
-      const transformedChannels: DirectMessageChannel[] = (channelsData as unknown as RawChannel[]).map(channel => ({
+      // Transform the data
+      const transformedChannels: DirectMessageChannel[] = (channelsData || []).map(channel => ({
         id: channel.id,
-        participants: channel.participants.map(p => ({
-          user_id: p.user_id,
-          user: {
-            id: p.user.id,
-            email: p.user.email,
-            name: p.user.name,
-            avatar_url: p.user.avatar_url ?? undefined,
-            user_profiles: p.user.user_profiles
+        participants: channel.participants.map(p => {
+          const userData = p.user as unknown as { 
+            id: string; 
+            email: string; 
+            profile: { 
+              name: string | null; 
+              avatar_url: string | null; 
+              status: string | null; 
+            }
           }
-        }))
+          return {
+            user_id: p.user_id,
+            user: {
+              id: userData.id,
+              email: userData.email,
+              name: userData.profile?.name || null,
+              avatar_url: userData.profile?.avatar_url || null,
+              status: userData.profile?.status || null,
+              user_profiles: [userData.profile]
+            }
+          }
+        })
       }))
 
       setChannels(transformedChannels)
@@ -194,64 +175,35 @@ export function useDirectMessages() {
     }
   }
 
-  const fetchMessages = async (channelId: string) => {
-    try {
-      const { data: messagesData, error: messagesError } = await supabase
-        .from('direct_messages')
-        .select(`
-          id,
-          content,
-          channel_id,
-          sender_id,
-          sender:users!inner(
-            id,
-            email,
-            name,
-            avatar_url,
-            user_profiles (
-              name
-            )
-          ),
-          file,
-          created_at,
-          reactions:direct_message_reactions(
-            id,
-            emoji,
-            user_id
-          )
-        `)
-        .eq('channel_id', channelId)
-        .order('created_at', { ascending: true })
-
-      if (messagesError) throw messagesError
-
-      const transformedMessages: DirectMessage[] = (messagesData as unknown as RawMessage[]).map(msg => ({
-        id: msg.id,
-        content: msg.content,
-        sender_id: msg.sender_id,
-        file: msg.file ?? undefined,
-        created_at: msg.created_at,
-        sender: {
-          id: msg.sender.id,
-          email: msg.sender.email,
-          name: msg.sender.name,
-          avatar_url: msg.sender.avatar_url ?? undefined,
-          user_profiles: msg.sender.user_profiles
-        },
-        reactions: msg.reactions ?? []
-      }))
-
-      setMessages(transformedMessages)
-    } catch (error) {
-      console.error('Error fetching messages:', error)
-    }
-  }
-
   const createChannel = async (otherUserId: string) => {
     if (!user) return null
 
     try {
-      // Create a new channel first
+      // First get all channels where the other user is a participant
+      const { data: otherUserChannels, error: otherUserError } = await supabase
+        .from('direct_message_participants')
+        .select('channel_id')
+        .eq('user_id', otherUserId)
+
+      if (otherUserError) throw otherUserError
+
+      // Then check if current user is also a participant in any of those channels
+      if (otherUserChannels && otherUserChannels.length > 0) {
+        const channelIds = otherUserChannels.map(c => c.channel_id)
+        const { data: existingChannels, error: existingError } = await supabase
+          .from('direct_message_participants')
+          .select('channel_id')
+          .eq('user_id', user.id)
+          .in('channel_id', channelIds)
+
+        if (existingError) throw existingError
+
+        if (existingChannels && existingChannels.length > 0) {
+          return existingChannels[0].channel_id
+        }
+      }
+
+      // Create a new channel if no existing one found
       const { data: newChannel, error: createError } = await supabase
         .from('direct_message_channels')
         .insert({})
@@ -260,19 +212,15 @@ export function useDirectMessages() {
 
       if (createError) throw createError
 
-      // Add the current user first
-      const { error: currentUserError } = await supabase
+      // Add both participants
+      const { error: participantsError } = await supabase
         .from('direct_message_participants')
-        .insert({ channel_id: newChannel.id, user_id: user.id })
+        .insert([
+          { channel_id: newChannel.id, user_id: user.id },
+          { channel_id: newChannel.id, user_id: otherUserId }
+        ])
 
-      if (currentUserError) throw currentUserError
-
-      // Then add the other user
-      const { error: otherUserError } = await supabase
-        .from('direct_message_participants')
-        .insert({ channel_id: newChannel.id, user_id: otherUserId })
-
-      if (otherUserError) throw otherUserError
+      if (participantsError) throw participantsError
 
       await fetchChannels()
       return newChannel.id
@@ -282,91 +230,8 @@ export function useDirectMessages() {
     }
   }
 
-  const sendMessage = async (content: string, file?: File) => {
-    if (!user || !activeChannelId) return
-
-    try {
-      let fileData
-      if (file) {
-        const { data: uploadData, error: uploadError } = await supabase
-          .storage
-          .from('dm-attachments')
-          .upload(`${activeChannelId}/${Date.now()}-${file.name}`, file)
-
-        if (uploadError) throw uploadError
-        
-        const { data: { publicUrl } } = supabase
-          .storage
-          .from('dm-attachments')
-          .getPublicUrl(uploadData.path)
-
-        fileData = {
-          name: file.name,
-          type: file.type,
-          url: publicUrl
-        }
-      }
-
-      const { error } = await supabase
-        .from('direct_messages')
-        .insert({
-          content,
-          channel_id: activeChannelId,
-          sender_id: user.id,
-          file: fileData
-        })
-
-      if (error) throw error
-    } catch (error) {
-      console.error('Error sending message:', error)
-    }
-  }
-
-  const addReaction = async (messageId: string, emoji: string) => {
-    if (!user) return
-
-    try {
-      const { error } = await supabase
-        .from('direct_message_reactions')
-        .insert({
-          message_id: messageId,
-          user_id: user.id,
-          emoji
-        })
-
-      if (error) throw error
-    } catch (error) {
-      console.error('Error adding reaction:', error)
-    }
-  }
-
-  const removeReaction = async (messageId: string, emoji: string) => {
-    if (!user) return
-
-    try {
-      const { error } = await supabase
-        .from('direct_message_reactions')
-        .delete()
-        .match({
-          message_id: messageId,
-          user_id: user.id,
-          emoji
-        })
-
-      if (error) throw error
-    } catch (error) {
-      console.error('Error removing reaction:', error)
-    }
-  }
-
   return {
     channels,
-    messages,
-    activeChannelId,
-    setActiveChannelId,
-    createChannel,
-    sendMessage,
-    addReaction,
-    removeReaction
+    createChannel
   }
 } 

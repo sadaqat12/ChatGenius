@@ -16,15 +16,18 @@ import Image from 'next/image'
 import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { AIChatArea } from "@/components/ai-chat-area"
+import { cn } from "@/lib/utils"
 
 interface DirectMessageParticipant {
   user_id: string;
   user: {
     id: string;
     email: string;
-    user_profiles: Array<{
+    user_profiles: {
       name: string | null;
-    }>;
+      avatar_url: string | null;
+      status: string | null;
+    }[];
   };
 }
 
@@ -48,7 +51,7 @@ interface ChatAreaProps {
   activeChat: {
     id: string;
     name?: string;
-    type: 'channel' | 'directMessage' | 'ai';
+    type: 'channel' | 'dm' | 'ai';
   }
 }
 
@@ -65,13 +68,31 @@ interface AttachedFile {
   preview: string
 }
 
+interface Reaction {
+  id: string;
+  emoji: string;
+  users: {
+    id: string;
+    email: string;
+    name: string;
+    avatar_url?: string;
+    status: string;
+  }[];
+  count: number;
+}
+
+interface EmojiReactionsProps {
+  reactions: Reaction[];
+  onReactionClick: (emoji: string) => Promise<void>;
+  currentUserId?: string;
+}
+
 export function ChatArea({ activeChat }: ChatAreaProps) {
   // If it's an AI chat, render the AI chat component
   if (activeChat.type === 'ai') {
     return <AIChatArea />
   }
 
-  // Rest of the existing component for channel and DM chats
   const [newMessage, setNewMessage] = useState('')
   const [activeThread, setActiveThread] = useState<string | null>(null)
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null)
@@ -90,9 +111,9 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
     addReaction,
     removeReaction
   } = useMessages({
-    channelId: String(activeChat.id),
+    channelId: activeChat.id,
     parentId: activeThread || undefined,
-    messageType: activeChat.type === 'directMessage' ? 'direct' : 'channel'
+    messageType: activeChat.type === 'dm' ? 'direct' : 'channel'
   })
 
   useEffect(() => {
@@ -109,7 +130,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
 
   useEffect(() => {
     const fetchRecipientName = async () => {
-      if (activeChat.type === 'directMessage') {
+      if (activeChat.type === 'dm') {
         const { data: participants, error } = await supabase
           .from('direct_message_participants')
           .select(`
@@ -118,54 +139,46 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
               id,
               email,
               user_profiles!inner (
-                name
+                name,
+                avatar_url,
+                status
               )
             )
           `)
-          .eq('channel_id', activeChat.id) as unknown as ParticipantResponse;
+          .eq('channel_id', activeChat.id)
 
         if (!error && participants) {
           const otherParticipant = participants.find(
             p => p.user_id !== user?.id
-          );
+          )
           
-          if (otherParticipant?.user) {
-            const profileName = otherParticipant.user.user_profiles[0]?.name;
-            setRecipientName(profileName || otherParticipant.user.email);
-            setRecipientEmail(otherParticipant.user.email);
+          if (otherParticipant) {
+            const userData = otherParticipant.user as unknown as { 
+              id: string; 
+              email: string; 
+              user_profiles: { 
+                name: string | null; 
+                avatar_url: string | null; 
+                status: string | null; 
+              }[] 
+            }
+            const profileName = userData.user_profiles[0]?.name
+            setRecipientName(profileName || userData.email)
+            setRecipientEmail(userData.email)
           }
         }
       }
-    };
+    }
 
-    fetchRecipientName();
-  }, [activeChat.id, activeChat.type, user?.id]);
+    fetchRecipientName()
+  }, [activeChat.id, activeChat.type, user?.id])
 
-  // Filter messages based on whether we're in thread view or main view
   const filteredMessages = activeThread
     ? messages.filter(message => 
         message.id === activeThread || // Show the parent message
         message.parent_id === activeThread // Show direct replies to this message
       )
     : messages.filter(message => !message.parent_id) // Only show parent messages in main view
-
-  const getReplyCount = (messageId: string) => {
-    const message = messages.find(m => m.id === messageId)
-    return message?.thread_count || 0
-  }
-
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      if (scrollAreaRef.current) {
-        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
-        if (scrollContainer) {
-          scrollContainer.scrollTop = scrollContainer.scrollHeight
-        }
-      }
-    }, 100)
-  }
 
   const handleSendMessage = async () => {
     if (newMessage.trim() === '' && !attachedFile) return
@@ -198,138 +211,142 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   }
 
   const handleReaction = async (messageId: string, emoji: string) => {
-    if (!user) return
+    const message = messages.find(m => m.id === messageId)
+    if (!message || !user) return
 
     try {
-      const message = messages.find(m => m.id === messageId)
-      if (!message) return
-
-      const existingReaction = message.reactions?.find(r => 
+      const userReacted = message.reactions?.some(r => 
         r.emoji === emoji && r.users.some(u => u.id === user.id)
       )
-      if (existingReaction) {
+
+      if (userReacted) {
         await removeReaction(messageId, emoji)
       } else {
         await addReaction(messageId, emoji)
       }
-    } catch (err) {
-      console.error('Error handling reaction:', err)
+    } catch (error) {
+      console.error('Error handling reaction:', error)
     }
   }
 
-  const handleReply = (messageId: string) => {
-    setActiveThread(messageId)
-  }
-
-  if (isLoading) {
-    return <div className="flex-1 flex items-center justify-center">Loading messages...</div>
-  }
-
-  if (error) {
-    return <div className="flex-1 flex items-center justify-center text-red-500">Error: {error.message}</div>
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (scrollAreaRef.current) {
+        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight
+        }
+      }
+    }, 100)
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="p-4 border-b flex justify-between items-center">
-        <div>
-          {activeChat.type === 'channel' ? (
-            <h2 className="text-xl font-bold">#{activeChat.name}</h2>
-          ) : (
-            <div>
-              <h2 className="text-xl font-bold">{recipientName}</h2>
-              {activeChat.type === 'directMessage' && (
-                <p className="text-sm text-gray-500">{recipientEmail}</p>
-              )}
-            </div>
-          )}
-          {activeThread && ' > Thread'}
-        </div>
+    <div className="flex-1 flex flex-col h-screen">
+      <div className="border-b px-6 py-3 flex items-center">
+        <h1 className="text-xl font-semibold">
+          {activeChat.type === 'dm' ? recipientName : activeChat.name}
+        </h1>
         {activeThread && (
-          <Button variant="outline" onClick={() => setActiveThread(null)}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Channel
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-4"
+            onClick={() => setActiveThread(null)}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to channel
           </Button>
         )}
       </div>
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        {filteredMessages.map((message) => (
-          <div 
-            key={message.id} 
-            className="group relative flex items-start space-x-3 py-2 px-4 hover:bg-gray-50"
-          >
-            <div className="relative">
+
+      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+        <div className="space-y-4">
+          {filteredMessages.map(message => (
+            <div key={message.id} className="flex items-start gap-3">
               <Avatar>
-                <AvatarImage src={message.user.avatar_url} alt={message.user.name} />
-                <AvatarFallback>{message.user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              {message.user.status && (
+                <AvatarImage src={message.user.avatar_url || undefined} />
+                <AvatarFallback>{message.user.name[0]}</AvatarFallback>
                 <div 
-                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                    message.user.status === 'online' ? 'bg-green-500' :
-                    message.user.status === 'away' ? 'bg-yellow-500' :
-                    message.user.status === 'busy' ? 'bg-red-500' :
-                    'bg-gray-500'
-                  }`} 
+                  className={cn(
+                    "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background",
+                    message.user.status === 'online' && "bg-green-500",
+                    message.user.status === 'away' && "bg-yellow-500",
+                    message.user.status === 'busy' && "bg-red-500",
+                    message.user.status === 'offline' && "bg-gray-500"
+                  )}
                 />
-              )}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <div className="flex items-center space-x-2">
-                <span className="font-medium text-gray-900">{message.user.name}</span>
-                <span className="text-xs text-gray-500">
-                  {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <div className="mt-0.5 text-sm text-gray-800">
-                {message.content}
+              </Avatar>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{message.user.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(message.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <p className="mt-1">{message.content}</p>
                 {message.file && (
-                  <FileAttachment file={message.file} />
+                  <FileAttachment
+                    file={{
+                      name: message.file.name,
+                      type: message.file.type,
+                      url: message.file.url,
+                      size: message.file.size || 0,
+                    }}
+                  />
                 )}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <EmojiReactions 
-                  messageId={message.id} 
-                  reactions={message.reactions} 
-                  show={true}
-                />
-                {!activeThread && !message.parent_id && (
-                  <div className="flex items-center gap-2">
-                    {message.thread_count > 0 && (
-                      <span className="text-xs text-gray-500">
-                        {message.thread_count} {message.thread_count === 1 ? 'reply' : 'replies'}
-                      </span>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => handleReply(message.id)}
-                    >
-                      <Reply className="h-4 w-4 mr-1" />
-                      Reply
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center gap-2 mt-2">
+                  <EmojiReactions
+                    messageId={message.id}
+                    reactions={message.reactions}
+                    onReactionClick={(emoji: string) => handleReaction(message.id, emoji)}
+                    currentUserId={user?.id}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    onClick={() => setActiveThread(message.id)}
+                  >
+                    <Reply className="h-4 w-4 mr-1" />
+                    {message.threadCount || 0} {message.threadCount === 1 ? 'reply' : 'replies'}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+          ))}
+        </div>
       </ScrollArea>
+
       <div className="p-4 border-t">
         {attachedFile && (
-          <div className="mb-2 flex items-center gap-2 bg-gray-800 p-2 rounded">
-            <div className="flex-1 truncate">{attachedFile.file.name}</div>
-            <Button variant="ghost" size="sm" onClick={removeAttachedFile}>
+          <div className="mb-4 p-2 bg-muted rounded-lg flex items-center gap-2">
+            <span className="text-sm">{attachedFile.file.name}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={removeAttachedFile}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Paperclip className="h-5 w-5" />
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
           <Input
             ref={inputRef}
-            placeholder="Type a message..."
+            placeholder="Type a message"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => {
@@ -339,15 +356,6 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
               }
             }}
           />
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            <Paperclip className="h-4 w-4" />
-          </Button>
           <Button onClick={handleSendMessage}>Send</Button>
         </div>
       </div>

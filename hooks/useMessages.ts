@@ -2,19 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Message, User } from '@/types/chat'
 import { useAuth } from '@/contexts/auth-context'
 
 interface UseMessagesOptions {
   channelId: string
   parentId?: string
+  messageType?: 'channel' | 'direct'
 }
 
-interface MessageRow {
+interface Message {
   id: string
   content: string
   channel_id: string
-  user_id: string
   parent_id: string | null
   file: {
     name: string
@@ -24,33 +23,16 @@ interface MessageRow {
     path?: string
   } | null
   created_at: string
-  updated_at: string
-  user: {
-    id: string
-    email: string
-    user_profiles: {
-      name: string
-      avatar_url: string | null
-      status: 'online' | 'away' | 'busy' | 'offline'
-    }[]
-  }
-  reactions: ReactionRow[] | null
+  user: User
+  reactions: Reaction[]
 }
 
-interface ReactionRow {
+interface User {
   id: string
-  message_id: string
-  user_id: string
-  emoji: string
-  user: {
-    id: string
-    email: string
-    user_profiles: {
-      name: string
-      avatar_url: string | null
-      status: 'online' | 'away' | 'busy' | 'offline'
-    }[]
-  }
+  email: string
+  name: string
+  avatar_url?: string
+  status: 'online' | 'away' | 'busy' | 'offline'
 }
 
 interface Reaction {
@@ -60,7 +42,7 @@ interface Reaction {
   count: number
 }
 
-export function useMessages({ channelId, parentId }: UseMessagesOptions) {
+export function useMessages({ channelId, parentId, messageType }: UseMessagesOptions) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -68,17 +50,25 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
 
   useEffect(() => {
     fetchMessages()
-    subscribeToMessages()
-    subscribeToReactions()
+    const unsubMessages = subscribeToMessages()
+    const unsubReactions = subscribeToReactions()
+    return () => {
+      unsubMessages()
+      unsubReactions()
+    }
   }, [channelId, parentId])
 
   const fetchMessages = async () => {
     try {
-      const query = supabase
-        .from('messages')
+      const table = messageType === 'direct' ? 'direct_messages' : 'messages'
+      const userField = messageType === 'direct' ? 'sender:users' : 'user:users'
+      const reactionsTable = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
+
+      let query = supabase
+        .from(table)
         .select(`
           *,
-          user:users (
+          ${userField} (
             id,
             email,
             user_profiles (
@@ -87,13 +77,14 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
               status
             )
           ),
-          reactions:reactions!message_id (
+          reactions:${reactionsTable}!message_id (
             id,
             emoji,
+            user_id,
             user:users!user_id (
               id,
               email,
-              user_profiles (
+              user_profiles!inner (
                 name,
                 avatar_url,
                 status
@@ -102,134 +93,81 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
           )
         `)
         .eq('channel_id', channelId)
-        .order('created_at', { ascending: true })
 
-      if (parentId) {
-        query.eq('parent_id', parentId)
-      } else {
-        query.is('parent_id', null)
+      // Only add parent_id filter for channel messages
+      if (messageType !== 'direct') {
+        if (parentId) {
+          query = query.eq('parent_id', parentId)
+        } else {
+          query = query.is('parent_id', null)
+        }
       }
 
-      const { data: messageRows, error } = await query
+      const { data, error } = await query.order('created_at', { ascending: true })
 
       if (error) throw error
 
-      // Get thread counts for all messages
-      const threadCounts = await Promise.all(
-        messageRows.map(async (message) => {
-          const { count } = await supabase
-            .from('messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('parent_id', message.id)
-          return { id: message.id, count: count || 0 }
-        })
-      )
+      console.log('Raw message data:', data) // Debug log
 
-      const threadCountMap = new Map(
-        threadCounts.map(({ id, count }) => [id, count])
-      )
-
-      const formattedMessages = await Promise.all(
-        (messageRows as MessageRow[]).map(row => 
-          formatMessage(row, threadCountMap.get(row.id) || 0)
-        )
-      )
+      const formattedMessages = data.map(message => formatMessage(message, messageType))
+      console.log('Formatted messages:', formattedMessages) // Debug log
+      
       setMessages(formattedMessages)
+      setIsLoading(false)
     } catch (err) {
       console.error('Error fetching messages:', err)
       setError(err as Error)
-    } finally {
       setIsLoading(false)
     }
   }
 
-  const formatMessage = async (row: MessageRow, threadCount: number): Promise<Message> => {
-    let userProfile = row.user?.user_profiles?.[0]
+  const formatMessage = (message: any, type: 'channel' | 'direct' = 'channel'): Message => {
+    const userField = type === 'direct' ? 'sender' : 'user'
+    const user = message[userField]
     
-    if (!userProfile) {
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', row.user_id)
-        .single()
-      
-      if (data) {
-        userProfile = data
-      }
-    }
-
-    const reactions = row.reactions?.reduce((acc: Reaction[], r: ReactionRow) => {
-      if (!r.user?.user_profiles?.[0]) {
-        return acc
-      }
-
-      const reactionUserProfile = r.user.user_profiles[0]
-      const user: User = {
-        id: r.user.id,
-        name: reactionUserProfile.name,
-        email: r.user.email,
-        avatar_url: reactionUserProfile.avatar_url || undefined,
-        status: reactionUserProfile.status
-      }
-
-      const existing = acc.find((a: Reaction) => a.emoji === r.emoji)
-      if (existing) {
-        existing.users.push(user)
-        existing.count++
-      } else {
-        acc.push({
-          id: r.id,
-          emoji: r.emoji,
-          users: [user],
-          count: 1
-        })
-      }
-      return acc
-    }, [] as Reaction[]) || []
-
-    if (!userProfile) {
-      console.warn('Missing user profile for message:', row.id)
+    if (!user) {
+      console.error('No user data found for message:', message)
       return {
-        id: row.id,
-        content: row.content,
-        channel_id: row.channel_id,
-        parent_id: row.parent_id || undefined,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        file: row.file || undefined,
+        id: message.id,
+        content: message.content,
+        channel_id: message.channel_id,
+        parent_id: type === 'direct' ? null : message.parent_id,
+        file: message.file,
+        created_at: message.created_at,
         user: {
-          id: row.user_id,
+          id: 'unknown',
+          email: 'unknown',
           name: 'Unknown User',
-          email: row.user?.email || '',
-          avatar_url: undefined,
           status: 'offline'
         },
-        thread_count: threadCount,
         reactions: []
       }
     }
 
+    // Get profile data - it's an object, not an array
+    const profile = user.user_profiles
+    const name = profile?.name || user.email.split('@')[0]
+
     return {
-      id: row.id,
-      content: row.content,
-      channel_id: row.channel_id,
-      parent_id: row.parent_id || undefined,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      file: row.file || undefined,
+      id: message.id,
+      content: message.content,
+      channel_id: message.channel_id,
+      parent_id: type === 'direct' ? null : message.parent_id,
+      file: message.file,
+      created_at: message.created_at,
       user: {
-        id: row.user_id,
-        name: userProfile.name,
-        email: row.user?.email || '',
-        avatar_url: userProfile.avatar_url || undefined,
-        status: userProfile.status
+        id: user.id,
+        email: user.email,
+        name: name,
+        avatar_url: profile?.avatar_url,
+        status: profile?.status || 'offline'
       },
-      thread_count: threadCount,
-      reactions
+      reactions: formatReactions(message.reactions)
     }
   }
 
   const subscribeToMessages = () => {
+    const table = messageType === 'direct' ? 'direct_messages' : 'messages'
     const channel = supabase
       .channel(`messages:${channelId}`)
       .on(
@@ -237,16 +175,16 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
         {
           event: '*',
           schema: 'public',
-          table: 'messages',
+          table,
           filter: `channel_id=eq.${channelId}`
         },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
             const { data: messageRow } = await supabase
-              .from('messages')
+              .from(table)
               .select(`
                 *,
-                user:users (
+                ${messageType === 'direct' ? 'sender:users' : 'user:users'} (
                   id,
                   email,
                   user_profiles (
@@ -260,8 +198,7 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
               .single()
 
             if (messageRow) {
-              // For new messages, thread count starts at 0
-              const newMessage = await formatMessage(messageRow as MessageRow, 0)
+              const newMessage = formatMessage(messageRow, messageType)
               setMessages(prev => [...prev, newMessage])
             }
           }
@@ -275,19 +212,78 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
   }
 
   const subscribeToReactions = () => {
+    const reactionsTable = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
+    const table = messageType === 'direct' ? 'direct_messages' : 'messages'
+    const userField = messageType === 'direct' ? 'sender:users' : 'user:users'
+
+    const fetchAndUpdateMessage = async (messageId: string) => {
+      const { data: messageData } = await supabase
+        .from(table)
+        .select(`
+          *,
+          ${userField} (
+            id,
+            email,
+            user_profiles (
+              name,
+              avatar_url,
+              status
+            )
+          ),
+          reactions:${reactionsTable}!message_id (
+            id,
+            emoji,
+            user_id,
+            user:users!user_id (
+              id,
+              email,
+              user_profiles!inner (
+                name,
+                avatar_url,
+                status
+              )
+            )
+          )
+        `)
+        .eq('id', messageId)
+        .single()
+
+      if (messageData) {
+        const updatedMessage = formatMessage(messageData, messageType)
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId ? updatedMessage : msg
+        ))
+      }
+    }
+
     const channel = supabase
       .channel(`reactions:${channelId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
-          table: 'reactions',
-          filter: `message_id=in.(${messages.map(m => m.id).join(',')})`
+          table: reactionsTable
         },
-        async () => {
-          // Refetch messages to get updated reactions
-          fetchMessages()
+        async (payload: { 
+          new: { message_id?: string } | null; 
+        }) => {
+          if (!payload.new?.message_id) return
+          await fetchAndUpdateMessage(payload.new.message_id)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: reactionsTable
+        },
+        async (payload: { 
+          old: { message_id?: string } | null;
+        }) => {
+          if (!payload.old?.message_id) return
+          await fetchAndUpdateMessage(payload.old.message_id)
         }
       )
       .subscribe()
@@ -324,15 +320,23 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
         }
       }
 
+      const table = messageType === 'direct' ? 'direct_messages' : 'messages'
+      const userIdField = messageType === 'direct' ? 'sender_id' : 'user_id'
+      const messageData: any = {
+        content,
+        channel_id: channelId,
+        [userIdField]: user.id,
+        file: fileData
+      }
+
+      // Only add parent_id for channel messages
+      if (messageType !== 'direct' && parentId) {
+        messageData.parent_id = parentId
+      }
+
       const { error } = await supabase
-        .from('messages')
-        .insert({
-          content,
-          channel_id: channelId,
-          parent_id: parentId || null,
-          user_id: user.id,
-          file: fileData
-        })
+        .from(table)
+        .insert(messageData)
 
       if (error) throw error
     } catch (err) {
@@ -345,8 +349,25 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
     if (!user) throw new Error('Not authenticated')
 
     try {
+      const table = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
+      
+      // First check if the reaction already exists
+      const { data: existingReaction } = await supabase
+        .from(table)
+        .select()
+        .eq('message_id', messageId)
+        .eq('user_id', user.id)
+        .eq('emoji', emoji)
+        .maybeSingle()
+
+      // If reaction exists, we'll remove it instead
+      if (existingReaction) {
+        return await removeReaction(messageId, emoji)
+      }
+
+      // Otherwise, add the new reaction
       const { error } = await supabase
-        .from('reactions')
+        .from(table)
         .insert({
           message_id: messageId,
           user_id: user.id,
@@ -364,8 +385,10 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
     if (!user) throw new Error('Not authenticated')
 
     try {
+      const table = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
+      console.log('Removing reaction from table:', table) // Debug log
       const { error } = await supabase
-        .from('reactions')
+        .from(table)
         .delete()
         .eq('message_id', messageId)
         .eq('user_id', user.id)
@@ -376,6 +399,54 @@ export function useMessages({ channelId, parentId }: UseMessagesOptions) {
       console.error('Error removing reaction:', err)
       throw err
     }
+  }
+
+  const formatReactions = (reactions: any[] | null): Reaction[] => {
+    if (!reactions) return []
+
+    console.log('Raw reactions:', reactions) // Debug log
+
+    const formattedReactions: { [key: string]: Reaction } = {}
+
+    reactions.forEach(r => {
+      console.log('Processing reaction:', r) // Debug log
+      
+      // Get user profile data - handle both array and single object cases
+      const userProfile = Array.isArray(r.user.user_profiles) 
+        ? r.user.user_profiles[0] 
+        : r.user.user_profiles
+
+      if (!userProfile) {
+        console.log('No user profile found for reaction:', r)
+        return
+      }
+
+      const user: User = {
+        id: r.user.id,
+        name: userProfile.name || r.user.email,
+        email: r.user.email,
+        avatar_url: userProfile.avatar_url || undefined,
+        status: userProfile.status || 'offline'
+      }
+
+      console.log('Formatted user:', user) // Debug log
+
+      if (!formattedReactions[r.emoji]) {
+        formattedReactions[r.emoji] = {
+          id: r.id,
+          emoji: r.emoji,
+          users: [user],
+          count: 1
+        }
+      } else {
+        formattedReactions[r.emoji].users.push(user)
+        formattedReactions[r.emoji].count++
+      }
+    })
+
+    const result = Object.values(formattedReactions)
+    console.log('Formatted reactions:', result) // Debug log
+    return result
   }
 
   return {
