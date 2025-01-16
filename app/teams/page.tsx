@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { ChatGeniusHeader } from '@/components/chat-genius-header'
-import { Settings } from 'lucide-react'
+import { Settings, User, LogOut } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -251,24 +251,34 @@ export default function TeamsPage() {
       <div className="flex-1 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Button 
-            variant="outline" 
-            onClick={async () => {
-              try {
-                await supabase.auth.signOut()
-                router.push('/login')
-              } catch (error) {
-                console.error('Error signing out:', error)
-                toast({
-                  title: "Error signing out",
-                  description: "Please try again",
-                  variant: "destructive",
-                })
-              }
-            }}
-          >
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => router.push('/profile')}
+            >
+              <User className="h-4 w-4 mr-2" />
+              Profile
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={async () => {
+                try {
+                  await supabase.auth.signOut()
+                  router.push('/login')
+                } catch (error) {
+                  console.error('Error signing out:', error)
+                  toast({
+                    title: "Error signing out",
+                    description: "Please try again",
+                    variant: "destructive",
+                  })
+                }
+              }}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
 
         {/* Create Team Dialog */}

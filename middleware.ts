@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // Handle protected routes
-    const isAuthRoute = ['/login', '/signup', '/auth'].some(path => req.nextUrl.pathname.startsWith(path))
+    const isAuthRoute = ['/login', '/signup', '/auth', '/reset-password', '/update-password'].some(path => req.nextUrl.pathname.startsWith(path))
     if (!session && !isAuthRoute) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
