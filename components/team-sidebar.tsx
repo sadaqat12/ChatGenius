@@ -166,7 +166,11 @@ export function TeamSidebar({ teamId }: TeamSidebarProps) {
                   <Button
                     key={option.value}
                     variant="ghost"
-                    className={`w-full justify-start gap-2 ${profile.status === option.value ? 'bg-gray-800' : ''}`}
+                    className={`w-full justify-start gap-2 ${
+                      profile.status === option.value 
+                        ? 'bg-gray-800 text-white font-medium ring-1 ring-gray-700'
+                        : 'hover:bg-gray-800/50'
+                    }`}
                     onClick={() => handleStatusChange(option.value)}
                   >
                     {option.icon}
