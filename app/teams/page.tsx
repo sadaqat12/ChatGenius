@@ -33,6 +33,8 @@ export default function TeamsPage() {
   const [newTeamName, setNewTeamName] = useState('')
   const [creating, setCreating] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
+  const [teamToLeave, setTeamToLeave] = useState<{ id: string; name: string } | null>(null)
   const [user, setUser] = useState<any>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const router = useRouter()
@@ -111,7 +113,7 @@ export default function TeamsPage() {
             console.error('Error creating team:', err)
           }
         }
-        
+
         setAuthChecked(true)
         setLoading(false)
       } catch (error) {
@@ -130,6 +132,34 @@ export default function TeamsPage() {
       router.push('/login')
     }
   }, [authChecked, user, loading, router])
+
+  // Set up real-time subscription for team_members
+  useEffect(() => {
+    if (!user) return
+
+    // Subscribe to team_members changes
+    const subscription = supabase
+      .channel('team_members_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'team_members',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('New team membership:', payload)
+          // Fetch the new team data and update the list
+          fetchTeams()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [user])
 
   useEffect(() => {
     if (user && !loading) {
@@ -220,6 +250,57 @@ export default function TeamsPage() {
       })
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleLeaveTeam = async (teamId: string, teamName: string) => {
+    if (!user) return
+
+    try {
+      // Check if user is the owner
+      const { data: membership, error: membershipError } = await supabase
+        .from('team_members')
+        .select('role')
+        .eq('team_id', teamId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (membershipError) throw membershipError
+
+      if (membership.role === 'owner') {
+        toast({
+          title: "Cannot leave team",
+          description: "You are the owner of this team. Transfer ownership before leaving.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Delete team membership
+      const { error: leaveError } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('user_id', user.id)
+
+      if (leaveError) throw leaveError
+
+      // Update local state
+      setTeams(teams.filter(team => team.id !== teamId))
+      setLeaveDialogOpen(false)
+      setTeamToLeave(null)
+
+      toast({
+        title: "Left team",
+        description: `You have left ${teamName}`,
+      })
+    } catch (error) {
+      console.error('Error leaving team:', error)
+      toast({
+        title: "Error",
+        description: "Failed to leave team. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -317,6 +398,39 @@ export default function TeamsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Leave Team Confirmation Dialog */}
+        <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Leave Team</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to leave {teamToLeave?.name}? You'll need a new invitation to rejoin.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setLeaveDialogOpen(false)
+                  setTeamToLeave(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (teamToLeave) {
+                    handleLeaveTeam(teamToLeave.id, teamToLeave.name)
+                  }
+                }}
+              >
+                Leave Team
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Pending Invitations Section */}
         {invites.length > 0 && (
           <div className="space-y-4">
@@ -382,14 +496,14 @@ export default function TeamsPage() {
                   key={team.id}
                   className="relative bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-semibold">{team.name}</h3>
-                      {team.description && (
-                        <p className="text-gray-600 mt-1">{team.description}</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
+                  <div className="flex flex-col gap-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="text-lg font-semibold">{team.name}</h3>
+                        {team.description && (
+                          <p className="text-gray-600 mt-1">{team.description}</p>
+                        )}
+                      </div>
                       {team.is_admin && (
                         <Button
                           variant="ghost"
@@ -402,11 +516,27 @@ export default function TeamsPage() {
                           <Settings className="h-4 w-4" />
                         </Button>
                       )}
+                    </div>
+                    <div className="flex flex-col gap-2">
                       <Button
                         onClick={() => router.push(`/teams/${team.id}`)}
+                        className="w-full"
                       >
                         Open
                       </Button>
+                      {!team.is_admin && (
+                        <Button
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setTeamToLeave({ id: team.id, name: team.name })
+                            setLeaveDialogOpen(true)
+                          }}
+                          className="w-full"
+                        >
+                          Leave
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

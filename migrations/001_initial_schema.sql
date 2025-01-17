@@ -134,6 +134,7 @@ CREATE TABLE direct_messages (
     channel_id UUID REFERENCES direct_message_channels(id),
     sender_id UUID REFERENCES auth.users(id),
     file JSONB,
+    extension TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

@@ -44,6 +44,34 @@ export function TeamSidebar({ teamId }: TeamSidebarProps) {
     }
   }, [user])
 
+  // Set up real-time subscription for team_members
+  useEffect(() => {
+    if (!user) return
+
+    // Subscribe to team_members changes
+    const subscription = supabase
+      .channel('team_members_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'team_members',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('New team membership:', payload)
+          // Fetch the new team data and update the list
+          fetchTeams()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [user])
+
   const fetchTeams = async () => {
     if (!user) return
     
