@@ -2,9 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import { OpenAIMessageEmbeddingService } from '@/lib/services/message-embedding-service';
 import { Database } from '@/lib/database.types';
 
-// Vercel specific header to protect the route
+// Vercel specific headers to protect the route
 export const runtime = 'edge';
 export const preferredRegion = 'iad1';
+export const maxDuration = 300; // 5 minutes timeout
 
 async function processNewMessages() {
   // Initialize Supabase client
@@ -30,7 +31,8 @@ async function processNewMessages() {
         .from('message_embeddings')
         .select('message_id')
     ))
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    .limit(50); // Add limit to prevent timeout
 
   if (error) {
     console.error('Error fetching messages:', error);
@@ -68,11 +70,16 @@ async function processNewMessages() {
 }
 
 export async function GET(request: Request) {
-  // Verify the request is coming from Vercel Cron
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 });
-  }
+  try {
+    // Verify the request is coming from Vercel Cron
+    const authHeader = request.headers.get('authorization');
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return new Response('Unauthorized', { status: 401 });
+    }
 
-  return processNewMessages();
+    return processNewMessages();
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 } 
