@@ -1,0 +1,146 @@
+[
+    {
+      "table_name": "channel_members",
+      "column_name": "channel_id",
+      "foreign_table_name": "channels",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "channels",
+      "column_name": "team_id",
+      "foreign_table_name": "teams",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "thread_id",
+      "foreign_table_name": "chat_threads",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "direct_message_participants",
+      "column_name": "channel_id",
+      "foreign_table_name": "direct_message_channels",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "direct_messages",
+      "column_name": "channel_id",
+      "foreign_table_name": "direct_message_channels",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "direct_message_reactions",
+      "column_name": "message_id",
+      "foreign_table_name": "direct_messages",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "messages",
+      "column_name": "channel_id",
+      "foreign_table_name": "channels",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "messages",
+      "column_name": "parent_id",
+      "foreign_table_name": "messages",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "reactions",
+      "column_name": "message_id",
+      "foreign_table_name": "messages",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "team_invites",
+      "column_name": "team_id",
+      "foreign_table_name": "teams",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "team_members",
+      "column_name": "team_id",
+      "foreign_table_name": "teams",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "channel_members",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "channels",
+      "column_name": "created_by",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "chat_threads",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "direct_message_participants",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "direct_message_reactions",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "direct_messages",
+      "column_name": "sender_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "messages",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "reactions",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "reactions",
+      "column_name": "created_by",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "team_members",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "teams",
+      "column_name": "created_by",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    },
+    {
+      "table_name": "user_profiles",
+      "column_name": "user_id",
+      "foreign_table_name": "users",
+      "foreign_column_name": "id"
+    }
+  ]

@@ -241,8 +241,8 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   }
 
   return (
-    <div className="flex-1 flex flex-col h-screen">
-      <div className="border-b px-6 py-3 flex items-center">
+    <div className="flex-1 flex flex-col max-h-full overflow-hidden">
+      <div className="border-b px-6 py-3 flex items-center flex-shrink-0">
         <h1 className="text-xl font-semibold">
           {activeChat.type === 'dm' ? recipientName : activeChat.name}
         </h1>
@@ -259,7 +259,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
         )}
       </div>
 
-      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
+      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 min-h-0">
         <div className="space-y-4">
           {filteredMessages.map(message => (
             <div key={message.id} className="flex items-start gap-3">
@@ -308,7 +308,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
                     onClick={() => setActiveThread(message.id)}
                   >
                     <Reply className="h-4 w-4 mr-1" />
-                    {message.threadCount || 0} {message.threadCount === 1 ? 'reply' : 'replies'}
+                    {message.thread_count || 0} {message.thread_count === 1 ? 'reply' : 'replies'}
                   </Button>
                 </div>
               </div>
@@ -317,7 +317,7 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
         </div>
       </ScrollArea>
 
-      <div className="p-4 border-t">
+      <div className="p-4 border-t flex-shrink-0">
         {attachedFile && (
           <div className="mb-4 p-2 bg-muted rounded-lg flex items-center gap-2">
             <span className="text-sm">{attachedFile.file.name}</span>

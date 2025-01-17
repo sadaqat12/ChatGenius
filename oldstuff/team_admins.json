@@ -1,0 +1,24 @@
+{
+  "teams": [
+    {
+      "name": "Kelley-Smith",
+      "admin": "testuser16@example.com"
+    },
+    {
+      "name": "Bradley and Sons",
+      "admin": "testuser2@example.com"
+    },
+    {
+      "name": "Banks-Higgins",
+      "admin": "testuser7@example.com"
+    },
+    {
+      "name": "Rollins LLC",
+      "admin": "testuser10@example.com"
+    },
+    {
+      "name": "Petersen Inc",
+      "admin": "testuser3@example.com"
+    }
+  ]
+}

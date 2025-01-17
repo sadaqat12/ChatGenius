@@ -1,0 +1,482 @@
+[
+    {
+      "tablename": "channel_members",
+      "policyname": "Channel members can view channel",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "Enable read access for team members",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "Service role can manage channel members",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "Users can join channels",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "Users can leave channels",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "authenticated_channel_members_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "authenticated_channel_members_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channel_members",
+      "policyname": "service_role_channel_members",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "channels",
+      "policyname": "Enable read access for team members",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "channels",
+      "policyname": "Service role can manage channels",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "channels",
+      "policyname": "Users can view channels in their teams",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "channels",
+      "policyname": "authenticated_channels_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channels",
+      "policyname": "authenticated_channels_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "channels",
+      "policyname": "service_role_channels",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "chat_messages",
+      "policyname": "Users can insert their own chat messages",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "chat_messages",
+      "policyname": "Users can read their own chat messages",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "chat_threads",
+      "policyname": "Users can insert their own chat threads",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "chat_threads",
+      "policyname": "Users can read their own chat threads",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_channels",
+      "policyname": "authenticated_dm_channels_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_channels",
+      "policyname": "authenticated_dm_channels_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_channels",
+      "policyname": "service_role_dm_channels",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "direct_message_participants",
+      "policyname": "Users can leave DM channels",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_participants",
+      "policyname": "Users can view their DM participants",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_participants",
+      "policyname": "authenticated_dm_participants_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_participants",
+      "policyname": "authenticated_dm_participants_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_participants",
+      "policyname": "service_role_dm_participants",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "Enable delete access for users based on user_id",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "Enable insert access for authenticated users",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "Enable read access for authenticated users",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "authenticated_dm_reactions_delete",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "authenticated_dm_reactions_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "authenticated_dm_reactions_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_message_reactions",
+      "policyname": "service_role_dm_reactions",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "Service role can do everything",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "authenticated_dm_messages_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "authenticated_dm_messages_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "direct_messages_delete",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "direct_messages_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "direct_messages_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "direct_messages_update",
+      "cmd": "UPDATE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "direct_messages",
+      "policyname": "service_role_dm_messages",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "Enable read access for channel members",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "Users can view messages in their channels",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "authenticated_messages_delete",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "authenticated_messages_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "authenticated_messages_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "authenticated_messages_update",
+      "cmd": "UPDATE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "messages",
+      "policyname": "service_role_messages",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "Enable delete access for users based on user_id",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "Enable insert access for authenticated users",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "Enable read access for authenticated users",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "Enable read access for message viewers",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "authenticated_reactions_delete",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "authenticated_reactions_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "reactions",
+      "policyname": "authenticated_reactions_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_invites",
+      "policyname": "create_team_invites",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_invites",
+      "policyname": "delete_team_invites",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_invites",
+      "policyname": "update_team_invites",
+      "cmd": "UPDATE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_invites",
+      "policyname": "view_team_invites",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "Enable read access for team members",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "Team members can view team",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "Users can join teams",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "Users can leave teams",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "authenticated_delete",
+      "cmd": "DELETE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "authenticated_insert",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "authenticated_read",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "authenticated_update",
+      "cmd": "UPDATE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "team_members",
+      "policyname": "service_role_all",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "teams",
+      "policyname": "Service role can manage teams",
+      "cmd": "ALL",
+      "roles": "{service_role}"
+    },
+    {
+      "tablename": "teams",
+      "policyname": "teams_insert",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "teams",
+      "policyname": "teams_select",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "teams",
+      "policyname": "teams_update",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Allow profile management",
+      "cmd": "ALL",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Enable read access for authenticated users",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Enable read access for user profiles",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Users can insert own profile",
+      "cmd": "INSERT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Users can update own profile",
+      "cmd": "UPDATE",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Users can update their own profile",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Users can update their own status",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "user_profiles",
+      "policyname": "Users can view all profiles",
+      "cmd": "SELECT",
+      "roles": "{anon}"
+    }
+  ]

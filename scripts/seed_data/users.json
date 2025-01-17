@@ -1,0 +1,34 @@
+{
+  "users": [
+    {
+      "email": "sarah.chen@quantumcapital.com",
+      "name": "Sarah Chen",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah",
+      "role": "owner"
+    },
+    {
+      "email": "michael.zhang@quantumcapital.com",
+      "name": "Michael Zhang",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=Michael",
+      "role": "admin"
+    },
+    {
+      "email": "jessica.patel@quantumcapital.com",
+      "name": "Jessica Patel",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica",
+      "role": "admin"
+    },
+    {
+      "email": "david.thompson@quantumcapital.com",
+      "name": "David Thompson",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=David",
+      "role": "member"
+    },
+    {
+      "email": "emma.wilson@quantumcapital.com",
+      "name": "Emma Wilson",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma",
+      "role": "member"
+    }
+  ]
+} 

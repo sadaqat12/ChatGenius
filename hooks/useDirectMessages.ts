@@ -52,6 +52,22 @@ interface DirectMessageChannel {
   participants: DirectMessageParticipant[]
 }
 
+interface RawChannelData {
+  id: string;
+  participants: {
+    user_id: string;
+    user: {
+      id: string;
+      email: string;
+      user_profiles: {
+        name: string | null;
+        avatar_url: string | null;
+        status: string | null;
+      }[];
+    };
+  }[];
+}
+
 export function useDirectMessages(props?: UseDirectMessagesProps) {
   const [channels, setChannels] = useState<DirectMessageChannel[]>([])
   const { user } = useAuth()
@@ -146,13 +162,10 @@ export function useDirectMessages(props?: UseDirectMessagesProps) {
 
   const fetchChannels = async () => {
     if (!user || !teamId) {
-      console.log('Missing user or teamId:', { userId: user?.id, teamId })
       return
     }
 
     try {
-      console.log('Fetching DM channels for user:', user.id, 'team:', teamId)
-
       // First get the channel IDs where the current user is a participant
       const { data: userChannelIds, error: channelError } = await supabase
         .from('direct_message_participants')
@@ -160,17 +173,13 @@ export function useDirectMessages(props?: UseDirectMessagesProps) {
         .eq('user_id', user.id)
 
       if (channelError) {
-        console.error('Error fetching channel IDs:', channelError)
         throw channelError
       }
       
       if (!userChannelIds || userChannelIds.length === 0) {
-        console.log('No DM channels found for user')
         setChannels([])
         return
       }
-
-      console.log('Found DM channel IDs:', userChannelIds)
 
       // Then get the full channel data for those channels
       const { data: rawChannels, error } = await supabase
@@ -193,151 +202,27 @@ export function useDirectMessages(props?: UseDirectMessagesProps) {
         .in('id', userChannelIds.map(c => c.channel_id))
 
       if (error) {
-        console.error('Error fetching DM channel data:', error)
         throw error
       }
 
       if (!rawChannels || rawChannels.length === 0) {
-        console.log('No DM channel data found')
         setChannels([])
         return
       }
 
-      // Get user profiles in a separate query
-      const userIds = rawChannels.flatMap(channel => 
-        channel.participants.map(p => p.user_id)
-      )
-
-      const { data: teamMembers, error: profilesError } = await supabase
-        .from('team_members')
-        .select(`
-          user_id,
-          team_id,
-          users:users!inner (
-            id,
-            email,
-            user_profiles!inner (
-              name,
-              avatar_url,
-              status
-            )
-          )
-        `)
-        .in('user_id', userIds)
-        .eq('team_id', teamId)
-
-      if (profilesError) {
-        console.error('Error fetching team members:', profilesError)
-        throw profilesError
-      }
-
-      type TeamMember = {
-        user_id: string
-        team_id: string
-        users: {
-          id: string
-          email: string
-          user_profiles: {
-            name: string | null
-            avatar_url: string | null
-            status: string | null
-          }[]
-        }
-      }
-
-      const userProfilesMap = new Map(
-        ((teamMembers as unknown as TeamMember[]) || []).map(member => {
-          console.log('Creating profile map for user:', {
-            userId: member.user_id,
-            teamId: member.team_id,
-            profileName: member.users.user_profiles[0]?.name,
-            email: member.users.email
-          })
-          return [
-            member.user_id,
-            {
-              name: member.users.user_profiles[0]?.name,
-              avatar_url: member.users.user_profiles[0]?.avatar_url,
-              status: member.users.user_profiles[0]?.status || 'offline',
-              team_id: member.team_id,
-              email: member.users.email
-            }
-          ]
-        })
-      )
-
-      // Filter to only include channels where at least one other participant is in the current team
-      const filteredChannels = ((rawChannels as unknown as RawChannel[]) || []).filter(channel => {
-        // Get all participants except the current user
-        const otherParticipants = channel.participants.filter(p => p.user_id !== user.id)
-        
-        // Check if any of them are in the current team
-        const hasTeamMember = otherParticipants.some(p => {
-          const userProfile = userProfilesMap.get(p.user_id)
-          const isInTeam = userProfile?.team_id === teamId
-          return isInTeam
-        })
-        return hasTeamMember
-      })
-
-      const formattedChannels = filteredChannels.map(channel => ({
-        id: channel.id,
-        participants: channel.participants.map(p => {
-          const participant = p as unknown as {
-            user_id: string
-            user: {
-              id: string
-              email: string
-              user_profiles: {
-                name: string | null
-                avatar_url: string | null
-                status: string | null
-              }[]
-            }
-          }
-          const userProfile = userProfilesMap.get(participant.user_id)
-
-          // Get name from user profile in team
-          const name = userProfile?.name || participant.user.user_profiles[0]?.name || participant.user.email.split('@')[0]
-          
-          console.log('Resolving name for participant:', {
-            userId: participant.user_id,
-            teamProfileName: userProfile?.name,
-            globalProfileName: participant.user.user_profiles[0]?.name,
-            email: participant.user.email,
-            resolvedName: name
-          })
-
-          const avatarUrl = userProfile?.avatar_url || undefined
-          const status = userProfile?.status || 'offline'
-
-          return {
-            user_id: participant.user_id,
-            user: {
-              id: participant.user.id,
-              email: participant.user.email,
-              name,
-              avatar_url: avatarUrl,
-              status,
-              user_profiles: [{
-                name: userProfile?.name || undefined,
-                avatar_url: userProfile?.avatar_url || undefined,
-                status: userProfile?.status || 'offline',
-                team_id: userProfile?.team_id
-              }]
-            }
-          }
-        })
-      }))
-
-      console.log('Final DM channels:', formattedChannels.map(channel => ({
+      // Transform the raw channels data
+      const formattedChannels = rawChannels.map(channel => ({
         id: channel.id,
         participants: channel.participants.map(p => ({
-          userId: p.user_id,
-          name: p.user.name,
-          email: p.user.email
+          user_id: p.user_id,
+          user: {
+            id: p.user.id,
+            email: p.user.email,
+            user_profiles: p.user.user_profiles
+          }
         }))
-      })))
+      }))
+
       setChannels(formattedChannels)
     } catch (err) {
       console.error('Error fetching DM channels:', err)

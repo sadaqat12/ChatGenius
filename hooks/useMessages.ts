@@ -25,6 +25,7 @@ interface Message {
   created_at: string
   user: User
   reactions: Reaction[]
+  thread_count: number
 }
 
 interface User {
@@ -46,7 +47,52 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+
+  // Move fetchAndUpdateMessage to main scope
+  const fetchAndUpdateMessage = async (messageId: string) => {
+    const table = messageType === 'direct' ? 'direct_messages' : 'messages'
+    const userField = messageType === 'direct' ? 'sender:users' : 'user:users'
+    const reactionsTable = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
+
+    const { data: messageData } = await supabase
+      .from(table)
+      .select(`
+        *,
+        ${userField} (
+          id,
+          email,
+          user_profiles (
+            name,
+            avatar_url,
+            status
+          )
+        ),
+        reactions:${reactionsTable}!message_id (
+          id,
+          emoji,
+          user_id,
+          user:users!user_id (
+            id,
+            email,
+            user_profiles!inner (
+              name,
+              avatar_url,
+              status
+            )
+          )
+        )
+      `)
+      .eq('id', messageId)
+      .single()
+
+    if (messageData) {
+      const updatedMessage = formatMessage(messageData, messageType)
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? updatedMessage : msg
+      ))
+    }
+  }
 
   useEffect(() => {
     fetchMessages()
@@ -91,7 +137,7 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
               )
             )
           )
-        `)
+        `, { count: 'exact' })
         .eq('channel_id', channelId)
 
       // Only add parent_id filter for channel messages
@@ -107,10 +153,22 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
 
       if (error) throw error
 
-      console.log('Raw message data:', data) // Debug log
+      // Fetch thread counts separately for each message
+      const threadCounts = await Promise.all(
+        data.map(async (message) => {
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('parent_id', message.id)
+          
+          return count || 0
+        })
+      )
 
-      const formattedMessages = data.map(message => formatMessage(message, messageType))
-      console.log('Formatted messages:', formattedMessages) // Debug log
+      const formattedMessages = data.map((message, index) => ({
+        ...formatMessage(message, messageType),
+        thread_count: threadCounts[index]
+      }))
       
       setMessages(formattedMessages)
       setIsLoading(false)
@@ -140,7 +198,8 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
           name: 'Unknown User',
           status: 'offline'
         },
-        reactions: []
+        reactions: [],
+        thread_count: 0
       }
     }
 
@@ -162,7 +221,8 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         avatar_url: profile?.avatar_url,
         status: profile?.status || 'offline'
       },
-      reactions: formatReactions(message.reactions)
+      reactions: formatReactions(message.reactions),
+      thread_count: message.thread_count?.[0]?.count || 0
     }
   }
 
@@ -180,27 +240,12 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         },
         async (payload) => {
           if (payload.eventType === 'INSERT') {
-            const { data: messageRow } = await supabase
-              .from(table)
-              .select(`
-                *,
-                ${messageType === 'direct' ? 'sender:users' : 'user:users'} (
-                  id,
-                  email,
-                  user_profiles (
-                    name,
-                    avatar_url,
-                    status
-                  )
-                )
-              `)
-              .eq('id', payload.new.id)
-              .single()
-
-            if (messageRow) {
-              const newMessage = formatMessage(messageRow, messageType)
-              setMessages(prev => [...prev, newMessage])
-            }
+            // Fetch the complete message data with user and reactions
+            await fetchAndUpdateMessage(payload.new.id)
+          } else if (payload.eventType === 'UPDATE') {
+            await fetchAndUpdateMessage(payload.new.id)
+          } else if (payload.eventType === 'DELETE') {
+            setMessages(prev => prev.filter(msg => msg.id !== payload.old.id))
           }
         }
       )
@@ -215,46 +260,6 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
     const reactionsTable = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
     const table = messageType === 'direct' ? 'direct_messages' : 'messages'
     const userField = messageType === 'direct' ? 'sender:users' : 'user:users'
-
-    const fetchAndUpdateMessage = async (messageId: string) => {
-      const { data: messageData } = await supabase
-        .from(table)
-        .select(`
-          *,
-          ${userField} (
-            id,
-            email,
-            user_profiles (
-              name,
-              avatar_url,
-              status
-            )
-          ),
-          reactions:${reactionsTable}!message_id (
-            id,
-            emoji,
-            user_id,
-            user:users!user_id (
-              id,
-              email,
-              user_profiles!inner (
-                name,
-                avatar_url,
-                status
-              )
-            )
-          )
-        `)
-        .eq('id', messageId)
-        .single()
-
-      if (messageData) {
-        const updatedMessage = formatMessage(messageData, messageType)
-        setMessages(prev => prev.map(msg => 
-          msg.id === messageId ? updatedMessage : msg
-        ))
-      }
-    }
 
     const channel = supabase
       .channel(`reactions:${channelId}`)
@@ -294,53 +299,70 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
   }
 
   const sendMessage = async (content: string, file?: File) => {
-    if (!user) throw new Error('Not authenticated')
-
     try {
-      let fileData
+      let fileData = null
       if (file) {
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('attachments')
-          .upload(`${channelId}/${file.name}`, file)
+          .from('files')
+          .upload(`messages/${Date.now()}-${file.name}`, file)
 
         if (uploadError) throw uploadError
 
-        const { data } = await supabase.storage
-          .from('attachments')
-          .createSignedUrl(uploadData.path, 60 * 60) // 1 hour expiration
-
-        if (!data) throw new Error('Failed to create signed URL')
+        const { data: { publicUrl } } = supabase.storage
+          .from('files')
+          .getPublicUrl(uploadData.path)
 
         fileData = {
           name: file.name,
           type: file.type,
           size: file.size,
-          url: data.signedUrl,
+          url: publicUrl,
           path: uploadData.path
         }
       }
 
       const table = messageType === 'direct' ? 'direct_messages' : 'messages'
       const userIdField = messageType === 'direct' ? 'sender_id' : 'user_id'
-      const messageData: any = {
+      const messageData = {
         content,
         channel_id: channelId,
-        [userIdField]: user.id,
-        file: fileData
+        file: fileData,
+        [userIdField]: user?.id,
+        topic: 'chat',
+        extension: 'text',
+        ...(messageType !== 'direct' ? { parent_id: parentId || null } : {})
       }
 
-      // Only add parent_id for channel messages
-      if (messageType !== 'direct' && parentId) {
-        messageData.parent_id = parentId
+      // Optimistically add the message to the UI
+      const optimisticMessage: Message = {
+        id: Date.now().toString(), // Temporary ID
+        content,
+        channel_id: channelId,
+        parent_id: messageType === 'direct' ? null : (parentId || null),
+        file: fileData,
+        created_at: new Date().toISOString(),
+        user: {
+          id: user?.id || '',
+          email: user?.email || '',
+          name: profile?.name || user?.email?.split('@')[0] || 'Unknown',
+          avatar_url: profile?.avatar_url,
+          status: profile?.status || 'online'
+        },
+        reactions: [] as Reaction[],
+        thread_count: 0
       }
+      setMessages(prev => [...prev, optimisticMessage])
 
       const { error } = await supabase
         .from(table)
         .insert(messageData)
 
       if (error) throw error
+
     } catch (err) {
       console.error('Error sending message:', err)
+      // Remove the optimistic message if there was an error
+      setMessages(prev => prev.filter(msg => msg.id !== Date.now().toString()))
       throw err
     }
   }
@@ -365,16 +387,63 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         return await removeReaction(messageId, emoji)
       }
 
-      // Otherwise, add the new reaction
+      // Optimistically update the UI
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === messageId) {
+          const existingReactionIndex = msg.reactions.findIndex(r => r.emoji === emoji)
+          if (existingReactionIndex >= 0) {
+            // Update existing reaction
+            const updatedReactions = [...msg.reactions]
+            updatedReactions[existingReactionIndex] = {
+              ...updatedReactions[existingReactionIndex],
+              users: [...updatedReactions[existingReactionIndex].users, {
+                id: user.id,
+                email: user.email || '',
+                name: profile?.name || user.email?.split('@')[0] || 'Unknown',
+                avatar_url: profile?.avatar_url,
+                status: profile?.status || 'online'
+              }],
+              count: updatedReactions[existingReactionIndex].count + 1
+            }
+            return { ...msg, reactions: updatedReactions }
+          } else {
+            // Add new reaction
+            return {
+              ...msg,
+              reactions: [...msg.reactions, {
+                id: `temp-${Date.now()}`,
+                emoji,
+                users: [{
+                  id: user.id,
+                  email: user.email || '',
+                  name: profile?.name || user.email?.split('@')[0] || 'Unknown',
+                  avatar_url: profile?.avatar_url,
+                  status: profile?.status || 'online'
+                }],
+                count: 1
+              }]
+            }
+          }
+        }
+        return msg
+      }))
+
+      // Add the new reaction to the database
       const { error } = await supabase
         .from(table)
         .insert({
           message_id: messageId,
           user_id: user.id,
-          emoji
+          emoji,
+          message_type: messageType || 'channel',
+          created_by: user.id
         })
 
-      if (error) throw error
+      if (error) {
+        // Revert optimistic update on error
+        await fetchAndUpdateMessage(messageId)
+        throw error
+      }
     } catch (err) {
       console.error('Error adding reaction:', err)
       throw err
@@ -383,10 +452,30 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
 
   const removeReaction = async (messageId: string, emoji: string) => {
     if (!user) throw new Error('Not authenticated')
-
+    
+    const table = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
     try {
-      const table = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
-      console.log('Removing reaction from table:', table) // Debug log
+      // Optimistically update the UI
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            reactions: msg.reactions.map(reaction => {
+              if (reaction.emoji === emoji) {
+                const filteredUsers = reaction.users.filter(u => u.id !== user.id)
+                return {
+                  ...reaction,
+                  users: filteredUsers,
+                  count: reaction.count - 1
+                }
+              }
+              return reaction
+            }).filter(reaction => reaction.count > 0) // Remove reactions with no users
+          }
+        }
+        return msg
+      }))
+
       const { error } = await supabase
         .from(table)
         .delete()
@@ -394,9 +483,12 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         .eq('user_id', user.id)
         .eq('emoji', emoji)
 
-      if (error) throw error
+      if (error) {
+        // Revert optimistic update on error
+        await fetchAndUpdateMessage(messageId)
+        throw error
+      }
     } catch (err) {
-      console.error('Error removing reaction:', err)
       throw err
     }
   }
@@ -404,49 +496,33 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
   const formatReactions = (reactions: any[] | null): Reaction[] => {
     if (!reactions) return []
 
-    console.log('Raw reactions:', reactions) // Debug log
+    const reactionsByEmoji = reactions.reduce((acc, r) => {
+      if (!r.user?.user_profiles) return acc
 
-    const formattedReactions: { [key: string]: Reaction } = {}
-
-    reactions.forEach(r => {
-      console.log('Processing reaction:', r) // Debug log
-      
-      // Get user profile data - handle both array and single object cases
-      const userProfile = Array.isArray(r.user.user_profiles) 
-        ? r.user.user_profiles[0] 
-        : r.user.user_profiles
-
-      if (!userProfile) {
-        console.log('No user profile found for reaction:', r)
-        return
-      }
-
-      const user: User = {
+      const user = {
         id: r.user.id,
-        name: userProfile.name || r.user.email,
         email: r.user.email,
-        avatar_url: userProfile.avatar_url || undefined,
-        status: userProfile.status || 'offline'
+        name: r.user.user_profiles.name || r.user.email.split('@')[0],
+        avatar_url: r.user.user_profiles.avatar_url,
+        status: r.user.user_profiles.status || 'offline'
       }
 
-      console.log('Formatted user:', user) // Debug log
-
-      if (!formattedReactions[r.emoji]) {
-        formattedReactions[r.emoji] = {
+      const emoji = r.emoji
+      if (!acc[emoji]) {
+        acc[emoji] = {
           id: r.id,
-          emoji: r.emoji,
+          emoji: emoji,
           users: [user],
           count: 1
         }
       } else {
-        formattedReactions[r.emoji].users.push(user)
-        formattedReactions[r.emoji].count++
+        acc[emoji].users.push(user)
+        acc[emoji].count++
       }
-    })
+      return acc
+    }, {} as Record<string, Reaction>)
 
-    const result = Object.values(formattedReactions)
-    console.log('Formatted reactions:', result) // Debug log
-    return result
+    return Object.values(reactionsByEmoji) as Reaction[]
   }
 
   return {

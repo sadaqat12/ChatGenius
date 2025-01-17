@@ -1,0 +1,71 @@
+{
+  "teams": [
+    {
+      "name": "Quantum Capital Markets",
+      "description": "Global investment and trading firm specializing in quantitative strategies",
+      "channels": [
+        {
+          "name": "general",
+          "description": "General team discussions and announcements",
+          "is_private": false
+        },
+        {
+          "name": "trading-desk",
+          "description": "Real-time trading discussions and market analysis",
+          "is_private": false
+        },
+        {
+          "name": "risk-management",
+          "description": "Risk assessment and portfolio management discussions",
+          "is_private": true
+        },
+        {
+          "name": "market-research",
+          "description": "Market research, analysis, and investment opportunities",
+          "is_private": false
+        },
+        {
+          "name": "compliance",
+          "description": "Regulatory compliance and legal updates",
+          "is_private": true
+        },
+        {
+          "name": "tech-infrastructure",
+          "description": "Trading systems and technical infrastructure",
+          "is_private": false
+        }
+      ]
+    },
+    {
+      "name": "Investment Banking Division",
+      "description": "M&A, IPO, and corporate finance advisory services",
+      "channels": [
+        {
+          "name": "general",
+          "description": "General team discussions and announcements",
+          "is_private": false
+        },
+        {
+          "name": "deal-room",
+          "description": "Active deals and transaction discussions",
+          "is_private": true
+        },
+        {
+          "name": "client-relations",
+          "description": "Client relationship management and updates",
+          "is_private": false
+        },
+        {
+          "name": "pitch-books",
+          "description": "Collaboration on client presentations and pitch materials",
+          "is_private": false
+        },
+        {
+          "name": "market-updates",
+          "description": "Industry news and market developments",
+          "is_private": false
+        }
+      ]
+    }
+  ]
+} 
