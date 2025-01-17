@@ -29,24 +29,37 @@ interface UserProfile {
 interface User {
   id: string;
   email: string;
-  user_profiles: UserProfile[];
+  user_profiles: UserProfile;
 }
 
 interface TeamMemberResponse {
   user_id: string;
   role: string;
-  users: User;
+  users: {
+    id: string;
+    email: string;
+    user_profiles: UserProfile;
+  };
 }
 
 interface DirectMessageUser {
   id: string;
   email: string;
-  user_profiles: UserProfile[];
+  user_profiles: {
+    name: string | null;
+    avatar_url: string | null;
+    status: string | null;
+  };
 }
 
 interface DirectMessageParticipant {
   user_id: string;
   user: DirectMessageUser;
+}
+
+interface DirectMessageChannel {
+  id: string;
+  participants: DirectMessageParticipant[];
 }
 
 interface RawTeamMember {
@@ -55,9 +68,7 @@ interface RawTeamMember {
   users: {
     id: string;
     email: string;
-    user_profiles: {
-      name: string | null;
-    };
+    user_profiles: UserProfile;
   };
 }
 
@@ -72,7 +83,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
   const [userProfiles, setUserProfiles] = useState<Record<string, { name: string | null, avatar_url: string | null, status: string | null }>>({})
   const [formattedDMChannels, setFormattedDMChannels] = useState<Array<{
     id: string;
-    participant: ReturnType<typeof getOtherParticipant>;
+    participants: DirectMessageParticipant[];
   }>>([])
 
   useEffect(() => {
@@ -116,9 +127,9 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
           members.map(member => [
             member.user_id,
             {
-              name: member.users.user_profiles[0]?.name,
-              avatar_url: member.users.user_profiles[0]?.avatar_url,
-              status: member.users.user_profiles[0]?.status
+              name: member.users[0]?.user_profiles[0]?.name,
+              avatar_url: member.users[0]?.user_profiles[0]?.avatar_url,
+              status: member.users[0]?.user_profiles[0]?.status
             }
           ])
         )
@@ -200,35 +211,37 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
     }
   }
 
-  const getOtherParticipant = (channel: typeof dmChannels[0]) => {
-    const otherParticipant = channel.participants.find(p => p.user_id !== user?.id)
-    if (!otherParticipant) return null
-
-    const profile = userProfiles[otherParticipant.user_id]
-    if (profile) {
-      return {
-        ...otherParticipant,
-        user: {
-          ...otherParticipant.user,
-          user_profiles: [{
-            ...profile,
-            team_id: teamId
-          }]
-        }
-      }
+  const getOtherParticipant = (channel: DirectMessageChannel) => {
+    const otherParticipant = channel.participants.find(p => p.user_id !== user?.id);
+    
+    if (!otherParticipant?.user) {
+      return 'Unknown User';
     }
-
-    return otherParticipant
+    
+    const userProfile = otherParticipant.user.user_profiles;
+    
+    if (!userProfile) {
+      return 'Unknown User';
+    }
+    
+    return userProfile.name || 'Unknown User';
   }
 
   useEffect(() => {
     const formatted = dmChannels.map(channel => ({
       id: channel.id,
-      participant: getOtherParticipant(channel)
-    })).filter(channel => channel.participant !== null)
-    
-    setFormattedDMChannels(formatted)
-  }, [dmChannels, user?.id, userProfiles])
+      participants: channel.participants.map(p => ({
+        user_id: p.user_id,
+        user: {
+          id: p.user.id,
+          email: p.user.email,
+          user_profiles: p.user.user_profiles
+        }
+      }))
+    })).filter(channel => channel.participants.length > 0);
+
+    setFormattedDMChannels(formatted);
+  }, [dmChannels, user?.id]);
 
   return (
     <div className="w-64 bg-muted h-screen flex flex-col">
@@ -296,31 +309,35 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
             </Button>
           </div>
           <div className="space-y-[2px]">
-            {formattedDMChannels.map(channel => {
-              const userProfile = channel.participant?.user.user_profiles[0]
-              return (
-                <button
-              key={channel.id}
-                  onClick={() => onChannelSelect(channel.id, 'dm')}
-              className={cn(
-                    "w-full flex items-center gap-x-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent",
-                    activeChannelId === channel.id && "bg-accent"
-                  )}
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  <span>{userProfile?.name || channel.participant?.user.email}</span>
-                  <div 
-                    className={cn(
-                      "w-2 h-2 rounded-full ml-auto",
-                      userProfile?.status === 'online' && "bg-green-500",
-                      userProfile?.status === 'away' && "bg-yellow-500",
-                      userProfile?.status === 'busy' && "bg-red-500",
-                      userProfile?.status === 'offline' && "bg-gray-500"
-                    )}
-                  />
-                </button>
-              )
-            })}
+            {formattedDMChannels.map(channel => (
+              <button
+                key={channel.id}
+                onClick={() => onChannelSelect(channel.id, 'dm')}
+                className={cn(
+                  "w-full flex items-center gap-x-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent",
+                  activeChannelId === channel.id && "bg-accent"
+                )}
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>{getOtherParticipant(channel)}</span>
+                {channel.participants.map(p => {
+                  if (p.user_id === user?.id) return null;
+                  const userProfile = p.user.user_profiles;
+                  return (
+                    <div 
+                      key={p.user_id}
+                      className={cn(
+                        "w-2 h-2 rounded-full ml-auto",
+                        userProfile?.status === 'online' && "bg-green-500",
+                        userProfile?.status === 'away' && "bg-yellow-500",
+                        userProfile?.status === 'busy' && "bg-red-500",
+                        (!userProfile?.status || userProfile?.status === 'offline') && "bg-gray-500"
+                      )}
+                    />
+                  );
+                })}
+              </button>
+            ))}
           </div>
         </div>
       </ScrollArea>
@@ -333,7 +350,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
           </DialogHeader>
           <div className="space-y-2">
             {teamMembers.map(member => {
-              const userProfile = member.users.user_profiles[0]
+              const userProfile = member.users.user_profiles;
               return (
               <Button
                   key={member.user_id}
@@ -362,7 +379,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
                     }
                   }}
                 >
-                  {userProfile?.name || member.users.email}
+                  {userProfile?.name || 'Unknown User'}
               </Button>
               )
             })}

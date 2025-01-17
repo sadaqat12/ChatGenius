@@ -1,0 +1,62 @@
+[
+  {
+    "table_name": "channel_members",
+    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nchannel_id uuid NOT NULL\nuser_id uuid NOT NULL"
+  },
+  {
+    "table_name": "channels",
+    "columns": "is_private boolean DEFAULT false\ndescription text\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_by uuid NOT NULL\nid uuid NOT NULL DEFAULT uuid_generate_v4()\nteam_id uuid NOT NULL\nname text NOT NULL"
+  },
+  {
+    "table_name": "chat_messages",
+    "columns": "metadata jsonb\nid bigint NOT NULL DEFAULT nextval('chat_messages_id_seq'::regclass)\ncontent text NOT NULL\nrole text NOT NULL\nuser_id uuid NOT NULL\nthread_id bigint NOT NULL\ncreated_at timestamp with time zone NOT NULL DEFAULT now()"
+  },
+  {
+    "table_name": "chat_threads",
+    "columns": "title text\nupdated_at timestamp with time zone NOT NULL DEFAULT now()\nuser_id uuid NOT NULL\nassistant_type text NOT NULL\nid bigint NOT NULL DEFAULT nextval('chat_threads_id_seq'::regclass)\ncreated_at timestamp with time zone NOT NULL DEFAULT now()"
+  },
+  {
+    "table_name": "direct_message_channels",
+    "columns": "id uuid NOT NULL DEFAULT uuid_generate_v4()\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "direct_message_participants",
+    "columns": "created_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nuser_id uuid NOT NULL\nchannel_id uuid NOT NULL"
+  },
+  {
+    "table_name": "direct_message_reactions",
+    "columns": "message_id uuid\nid uuid NOT NULL DEFAULT gen_random_uuid()\nuser_id uuid\nemoji text NOT NULL\ncreated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "direct_messages",
+    "columns": "content text NOT NULL\nchannel_id uuid\nsender_id uuid\nfile jsonb\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nid uuid NOT NULL DEFAULT uuid_generate_v4()"
+  },
+  {
+    "table_name": "messages",
+    "columns": "topic text NOT NULL\ninserted_at timestamp without time zone NOT NULL DEFAULT now()\nprivate boolean DEFAULT false\nevent text\nid uuid NOT NULL DEFAULT uuid_generate_v4()\nchannel_id uuid NOT NULL\ncontent text NOT NULL\nuser_id uuid NOT NULL\nparent_id uuid\nfile jsonb\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ntopic text NOT NULL\npayload jsonb\nextension text NOT NULL\nupdated_at timestamp without time zone NOT NULL DEFAULT now()\nprivate boolean DEFAULT false\nevent text\npayload jsonb\nextension text NOT NULL\nid uuid NOT NULL DEFAULT gen_random_uuid()"
+  },
+  {
+    "table_name": "reactions",
+    "columns": "id uuid NOT NULL DEFAULT gen_random_uuid()\nuser_id uuid NOT NULL\nmessage_id uuid NOT NULL\nmessage_type text NOT NULL\ncreated_by uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT now()\nemoji text NOT NULL"
+  },
+  {
+    "table_name": "team_invites",
+    "columns": "created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())\nstatus text NOT NULL\nemail text NOT NULL\nid uuid NOT NULL DEFAULT gen_random_uuid()\nteam_id uuid NOT NULL\nupdated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "team_members",
+    "columns": "team_id uuid NOT NULL\nrole text NOT NULL DEFAULT 'member'::text\nuser_id uuid NOT NULL\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())"
+  },
+  {
+    "table_name": "teams",
+    "columns": "description text\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nid uuid NOT NULL DEFAULT uuid_generate_v4()\ncreated_by uuid NOT NULL\nname text NOT NULL"
+  },
+  {
+    "table_name": "tweets",
+    "columns": "content text NOT NULL\nid bigint NOT NULL DEFAULT nextval('tweets_id_seq'::regclass)\nembedding USER-DEFINED"
+  },
+  {
+    "table_name": "user_profiles",
+    "columns": "id uuid NOT NULL DEFAULT uuid_generate_v4()\npending_team_name text\ncreated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nupdated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\nstatus text NOT NULL DEFAULT 'online'::text\nstatus_updated_at timestamp with time zone DEFAULT timezone('utc'::text, now())\navatar_url text\nname text NOT NULL\nuser_id uuid NOT NULL"
+  }
+]

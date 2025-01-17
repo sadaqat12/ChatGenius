@@ -1,0 +1,112 @@
+{
+  "direct_message_threads": [
+    {
+      "participants": [
+        "sarah.chen@quantumcapital.com",
+        "michael.zhang@quantumcapital.com"
+      ],
+      "messages": [
+        {
+          "content": "Hey Michael, can you review the new trading algorithm parameters before we deploy to production?",
+          "author": "sarah.chen@quantumcapital.com",
+          "replies": [
+            {
+              "content": "Sure, I've looked at the backtesting results. The Sharpe looks good but we might want to adjust the position sizing logic.",
+              "author": "michael.zhang@quantumcapital.com"
+            }
+          ]
+        },
+        {
+          "content": "Also, what do you think about the new ML model David proposed for sentiment analysis?",
+          "author": "sarah.chen@quantumcapital.com",
+          "replies": [
+            {
+              "content": "It's promising. I especially like the real-time processing pipeline. We should schedule a technical review.",
+              "author": "michael.zhang@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "participants": [
+        "jessica.patel@quantumcapital.com",
+        "emma.wilson@quantumcapital.com"
+      ],
+      "messages": [
+        {
+          "content": "Emma, regarding your new arbitrage strategy - have you checked the regulatory requirements for cross-border trading?",
+          "author": "jessica.patel@quantumcapital.com",
+          "replies": [
+            {
+              "content": "Yes, I've reviewed the guidelines. We'll need special reporting for HK-China trades. I'll send you the details.",
+              "author": "emma.wilson@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "participants": [
+        "david.thompson@quantumcapital.com",
+        "michael.zhang@quantumcapital.com"
+      ],
+      "messages": [
+        {
+          "content": "Michael, I've improved the NLP model accuracy by 15% using the new transformer architecture.",
+          "author": "david.thompson@quantumcapital.com",
+          "replies": [
+            {
+              "content": "That's significant! What's the latency impact?",
+              "author": "michael.zhang@quantumcapital.com"
+            },
+            {
+              "content": "Only +5ms per inference. I've optimized the preprocessing pipeline.",
+              "author": "david.thompson@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "participants": [
+        "sarah.chen@quantumcapital.com",
+        "jessica.patel@quantumcapital.com"
+      ],
+      "messages": [
+        {
+          "content": "Jessica, can you prepare a risk assessment for the new Singapore office setup?",
+          "author": "sarah.chen@quantumcapital.com",
+          "replies": [
+            {
+              "content": "Already on it. I'll have the regulatory compliance framework ready by tomorrow.",
+              "author": "jessica.patel@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "participants": [
+        "emma.wilson@quantumcapital.com",
+        "david.thompson@quantumcapital.com"
+      ],
+      "messages": [
+        {
+          "content": "David, your market regime analysis is really helpful for my new mean reversion strategy.",
+          "author": "emma.wilson@quantumcapital.com",
+          "replies": [
+            {
+              "content": "Glad it helps! I noticed some interesting patterns in the volatility regime switches too.",
+              "author": "david.thompson@quantumcapital.com"
+            },
+            {
+              "content": "Could you share that analysis? Might help with my position sizing model.",
+              "author": "emma.wilson@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 

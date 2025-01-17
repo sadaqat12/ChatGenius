@@ -47,6 +47,7 @@ export interface Message {
   parent_id?: string;
   created_at: string;
   updated_at: string;
+  type?: 'channel' | 'direct';
   file?: {
     name: string;
     type: string;

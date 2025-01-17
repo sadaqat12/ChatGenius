@@ -34,27 +34,35 @@ export class SupabaseMessageService implements MessageService {
   }
 
   async getMessages(channelId: string): Promise<Message[]> {
-    // Fetch messages from the messages table
-    // Join with users table to get user information
     const { data, error } = await this.supabase
       .from('messages')
       .select(`
         *,
-        user:user_id (
+        user:users!user_id (
           id,
           email,
-          user_profiles (
+          user_profiles!inner (
             name,
-            avatar_url
+            avatar_url,
+            status
           )
         ),
-        reactions (
+        reactions!message_id (
           id,
           emoji,
-          user_id
+          user:users!user_id (
+            id,
+            email,
+            user_profiles!inner (
+              name,
+              avatar_url,
+              status
+            )
+          )
         )
       `)
       .eq('channel_id', channelId)
+      .is('parent_id', null)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
@@ -70,19 +78,26 @@ export class SupabaseMessageService implements MessageService {
       createdAt: new Date(msg.created_at),
       user: {
         id: msg.user.id,
-        name: msg.user.user_profiles[0]?.name || msg.user.email,
-        avatar: msg.user.user_profiles[0]?.avatar_url
+        name: msg.user.user_profiles.name,
+        email: msg.user.email,
+        avatar_url: msg.user.user_profiles.avatar_url
       },
-      reactions: msg.reactions?.map((r: { id: string; emoji: string; user_id: string }) => ({
+      reactions: msg.reactions?.map((r: any) => ({
         id: r.id,
         emoji: r.emoji,
-        userId: r.user_id
+        userId: r.user.id,
+        user: {
+          id: r.user.id,
+          name: r.user.user_profiles.name,
+          email: r.user.email,
+          avatar_url: r.user.user_profiles.avatar_url
+        }
       })) || [],
-      reply_count: 0
+      thread_count: msg.thread_count || 0
     }));
   }
 
-  async createMessage(message: Omit<Message, 'id' | 'created_at'>): Promise<Message> {
+  async createMessage(message: Omit<Message, 'id' | 'createdAt' | 'thread_count'>): Promise<Message> {
     // Get the current user's session
     const { data: { session }, error: sessionError } = await this.supabase.auth.getSession();
     if (sessionError) throw sessionError;
@@ -90,16 +105,17 @@ export class SupabaseMessageService implements MessageService {
 
     // If there's a file, upload it first
     let fileData = message.file;
-    if (fileData && fileData instanceof File) {
-      const publicUrl = await this.uploadFile(fileData);
+    if (fileData && 'size' in fileData) {
+      const publicUrl = await this.uploadFile(fileData as unknown as File);
       fileData = {
         name: fileData.name,
         type: fileData.type,
-        url: publicUrl
+        size: fileData.size,
+        url: publicUrl,
+        path: undefined
       };
     }
 
-    // Insert the message into the messages table
     const { data, error } = await this.supabase
       .from('messages')
       .insert({
@@ -118,6 +134,11 @@ export class SupabaseMessageService implements MessageService {
             name,
             avatar_url
           )
+        ),
+        reactions (
+          id,
+          emoji,
+          user_id
         )
       `)
       .single();
@@ -136,10 +157,11 @@ export class SupabaseMessageService implements MessageService {
       user: {
         id: data.user.id,
         name: data.user.user_profiles[0]?.name || data.user.email,
-        avatar: data.user.user_profiles[0]?.avatar_url
+        email: data.user.email,
+        avatar_url: data.user.user_profiles[0]?.avatar_url
       },
       reactions: [],
-      reply_count: 0
+      thread_count: 0
     };
   }
 
@@ -151,7 +173,7 @@ export class SupabaseMessageService implements MessageService {
 
     // Insert a new reaction into the reactions table
     const { error } = await this.supabase
-      .from('message_reactions')
+      .from('reactions')
       .insert({
         message_id: messageId,
         user_id: session.user.id,
@@ -169,7 +191,7 @@ export class SupabaseMessageService implements MessageService {
 
     // Delete the reaction from the reactions table
     const { error } = await this.supabase
-      .from('message_reactions')
+      .from('reactions')
       .delete()
       .match({
         message_id: messageId,
@@ -178,6 +200,26 @@ export class SupabaseMessageService implements MessageService {
       });
 
     if (error) throw error;
+  }
+
+  private formatMessage(msg: any): Message {
+    return {
+      id: msg.id,
+      content: msg.content,
+      channelId: msg.channel_id,
+      userId: msg.user_id,
+      parentId: msg.parent_id,
+      createdAt: new Date(msg.created_at),
+      user: {
+        id: msg.user?.id,
+        name: msg.user?.name || msg.user?.email?.split('@')[0] || 'Unknown',
+        email: msg.user?.email || '',
+        avatar_url: msg.user?.avatar_url
+      },
+      file: msg.file,
+      thread_count: msg.thread_count || 0,
+      reactions: msg.reactions || []
+    }
   }
 }
 

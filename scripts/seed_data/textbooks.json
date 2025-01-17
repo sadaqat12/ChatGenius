@@ -1,0 +1,71 @@
+{
+  "textbook_messages": [
+    {
+      "channel": "market-research",
+      "messages": [
+        {
+          "content": "Here's an excellent guide on technical analysis - 'A Beginner's Guide to Charting Financial Markets'. Great foundational resource for our analysts.",
+          "author": "sarah.chen@quantumcapital.com",
+          "file": {
+            "name": "A Beginners Guide to Charting Financial Markets (2007).pdf",
+            "path": "./scripts/seed_data/textbooks/A Beginners Guide to Charting Financial Markets (2007).pdf",
+            "type": "application/pdf",
+            "size": 15000000
+          },
+          "replies": [
+            {
+              "content": "The sections on trend analysis and pattern recognition are particularly useful for our junior analysts. Thanks for sharing!",
+              "author": "michael.zhang@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel": "risk-management",
+      "messages": [
+        {
+          "content": "Essential reading for understanding portfolio management strategies - 'What Hedge Funds Really Do'. Great insights into risk management practices.",
+          "author": "jessica.patel@quantumcapital.com",
+          "file": {
+            "name": "What Hedge Funds Really Do - An Introduction to Portfolio Management.pdf",
+            "path": "./scripts/seed_data/textbooks/What Hedge Funds Really Do - An Introduction to Portfolio Management.pdf",
+            "type": "application/pdf",
+            "size": 12000000
+          },
+          "replies": [
+            {
+              "content": "The chapter on risk metrics and portfolio optimization is particularly relevant for our current strategy review.",
+              "author": "emma.wilson@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "channel": "client-relations",
+      "messages": [
+        {
+          "content": "Team, I'm sharing 'The Richest Man in Babylon' - timeless wisdom about wealth management that we can use in client discussions about long-term investment principles.",
+          "author": "david.thompson@quantumcapital.com",
+          "file": {
+            "name": "therichestmaninbabylon.pdf",
+            "path": "./scripts/seed_data/textbooks/therichestmaninbabylon.pdf",
+            "type": "application/pdf",
+            "size": 10000000
+          },
+          "replies": [
+            {
+              "content": "Great resource! The parables make complex financial concepts accessible to clients. I've already used some examples in my client presentations.",
+              "author": "michael.zhang@quantumcapital.com"
+            },
+            {
+              "content": "The principles about diversification and long-term thinking align perfectly with our wealth management philosophy.",
+              "author": "sarah.chen@quantumcapital.com"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 

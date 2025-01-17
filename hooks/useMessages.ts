@@ -25,6 +25,7 @@ interface Message {
   created_at: string
   user: User
   reactions: Reaction[]
+  thread_count: number
 }
 
 interface User {
@@ -91,7 +92,7 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
               )
             )
           )
-        `)
+        `, { count: 'exact' })
         .eq('channel_id', channelId)
 
       // Only add parent_id filter for channel messages
@@ -107,10 +108,22 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
 
       if (error) throw error
 
-      console.log('Raw message data:', data) // Debug log
+      // Fetch thread counts separately for each message
+      const threadCounts = await Promise.all(
+        data.map(async (message) => {
+          const { count } = await supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('parent_id', message.id)
+          
+          return count || 0
+        })
+      )
 
-      const formattedMessages = data.map(message => formatMessage(message, messageType))
-      console.log('Formatted messages:', formattedMessages) // Debug log
+      const formattedMessages = data.map((message, index) => ({
+        ...formatMessage(message, messageType),
+        thread_count: threadCounts[index]
+      }))
       
       setMessages(formattedMessages)
       setIsLoading(false)
@@ -140,7 +153,8 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
           name: 'Unknown User',
           status: 'offline'
         },
-        reactions: []
+        reactions: [],
+        thread_count: 0
       }
     }
 
@@ -162,7 +176,8 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         avatar_url: profile?.avatar_url,
         status: profile?.status || 'offline'
       },
-      reactions: formatReactions(message.reactions)
+      reactions: formatReactions(message.reactions),
+      thread_count: message.thread_count?.[0]?.count || 0
     }
   }
 
@@ -198,7 +213,22 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
               .single()
 
             if (messageRow) {
-              const newMessage = formatMessage(messageRow, messageType)
+              // Get updated thread count for parent message
+              const { count } = await supabase
+                .from('messages')
+                .select('id', { count: 'exact' })
+                .eq('parent_id', messageRow.parent_id)
+
+              setMessages(prev => prev.map(msg => 
+                msg.id === messageRow.parent_id 
+                  ? { ...msg, thread_count: count || 0 }
+                  : msg
+              ))
+
+              const newMessage = {
+                ...formatMessage(messageRow, messageType),
+                thread_count: messageRow.thread_count?.[0]?.count || 0
+              }
               setMessages(prev => [...prev, newMessage])
             }
           }
@@ -382,21 +412,19 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
   }
 
   const removeReaction = async (messageId: string, emoji: string) => {
-    if (!user) throw new Error('Not authenticated')
-
+    const table = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
     try {
-      const table = messageType === 'direct' ? 'direct_message_reactions' : 'reactions'
-      console.log('Removing reaction from table:', table) // Debug log
       const { error } = await supabase
         .from(table)
         .delete()
         .eq('message_id', messageId)
-        .eq('user_id', user.id)
+        .eq('user_id', user?.id)
         .eq('emoji', emoji)
 
       if (error) throw error
+
+      await fetchAndUpdateMessage(messageId)
     } catch (err) {
-      console.error('Error removing reaction:', err)
       throw err
     }
   }
@@ -404,48 +432,33 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
   const formatReactions = (reactions: any[] | null): Reaction[] => {
     if (!reactions) return []
 
-    console.log('Raw reactions:', reactions) // Debug log
+    const reactionsByEmoji = reactions.reduce((acc, r) => {
+      if (!r.user?.user_profiles) return acc
 
-    const formattedReactions: { [key: string]: Reaction } = {}
-
-    reactions.forEach(r => {
-      console.log('Processing reaction:', r) // Debug log
-      
-      // Get user profile data - handle both array and single object cases
-      const userProfile = Array.isArray(r.user.user_profiles) 
-        ? r.user.user_profiles[0] 
-        : r.user.user_profiles
-
-      if (!userProfile) {
-        console.log('No user profile found for reaction:', r)
-        return
-      }
-
-      const user: User = {
+      const user = {
         id: r.user.id,
-        name: userProfile.name || r.user.email,
         email: r.user.email,
-        avatar_url: userProfile.avatar_url || undefined,
-        status: userProfile.status || 'offline'
+        name: r.user.user_profiles.name || r.user.email.split('@')[0],
+        avatar_url: r.user.user_profiles.avatar_url,
+        status: r.user.user_profiles.status || 'offline'
       }
 
-      console.log('Formatted user:', user) // Debug log
-
-      if (!formattedReactions[r.emoji]) {
-        formattedReactions[r.emoji] = {
+      const emoji = r.emoji
+      if (!acc[emoji]) {
+        acc[emoji] = {
           id: r.id,
-          emoji: r.emoji,
+          emoji: emoji,
           users: [user],
           count: 1
         }
       } else {
-        formattedReactions[r.emoji].users.push(user)
-        formattedReactions[r.emoji].count++
+        acc[emoji].users.push(user)
+        acc[emoji].count++
       }
-    })
+      return acc
+    }, {} as Record<string, Reaction>)
 
-    const result = Object.values(formattedReactions)
-    console.log('Formatted reactions:', result) // Debug log
+    const result = Object.values(reactionsByEmoji)
     return result
   }
 
