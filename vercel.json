@@ -1,0 +1,6 @@
+{
+  "crons": [{
+    "path": "/api/cron/update-embeddings",
+    "schedule": "0 0 * * *"
+  }]
+} 
