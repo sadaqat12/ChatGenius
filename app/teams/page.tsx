@@ -494,9 +494,9 @@ export default function TeamsPage() {
               {teams.map((team) => (
                 <div
                   key={team.id}
-                  className="relative bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow"
+                  className="relative bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow min-h-[200px] flex flex-col"
                 >
-                  <div className="flex flex-col gap-4">
+                  <div className="flex-grow">
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="text-lg font-semibold">{team.name}</h3>
@@ -517,27 +517,27 @@ export default function TeamsPage() {
                         </Button>
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
+                  </div>
+                  <div className="flex flex-col gap-2 mt-auto">
+                    <Button
+                      onClick={() => router.push(`/teams/${team.id}`)}
+                      className="w-full"
+                    >
+                      Open
+                    </Button>
+                    {!team.is_admin && (
                       <Button
-                        onClick={() => router.push(`/teams/${team.id}`)}
+                        variant="destructive"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setTeamToLeave({ id: team.id, name: team.name })
+                          setLeaveDialogOpen(true)
+                        }}
                         className="w-full"
                       >
-                        Open
+                        Leave
                       </Button>
-                      {!team.is_admin && (
-                        <Button
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setTeamToLeave({ id: team.id, name: team.name })
-                            setLeaveDialogOpen(true)
-                          }}
-                          className="w-full"
-                        >
-                          Leave
-                        </Button>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}

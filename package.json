@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "backfill-embeddings": "tsx scripts/backfill-embeddings.ts"
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
@@ -74,6 +75,7 @@
     "dotenv": "^16.4.7",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }
