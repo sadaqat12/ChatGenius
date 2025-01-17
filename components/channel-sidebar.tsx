@@ -13,6 +13,9 @@ import { useAuth } from '@/contexts/auth-context'
 import { useDirectMessages } from '@/hooks/useDirectMessages'
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface ChannelSidebarProps {
   teamId: string
@@ -74,7 +77,10 @@ interface RawTeamMember {
 
 export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: ChannelSidebarProps) {
   const [channels, setChannels] = useState<Channel[]>([])
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isDMDialogOpen, setIsDMDialogOpen] = useState(false)
+  const [isChannelDialogOpen, setIsChannelDialogOpen] = useState(false)
+  const [newChannelName, setNewChannelName] = useState('')
+  const [isPrivateChannel, setIsPrivateChannel] = useState(false)
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([])
   const { user } = useAuth()
   const router = useRouter()
@@ -243,6 +249,55 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
     setFormattedDMChannels(formatted);
   }, [dmChannels, user?.id]);
 
+  const createChannel = async () => {
+    if (!newChannelName.trim() || !user) return;
+    
+    try {
+      // First create the channel
+      const { data: channel, error: channelError } = await supabase
+        .from('channels')
+        .insert([
+          {
+            name: newChannelName.trim(),
+            team_id: teamId,
+            is_private: isPrivateChannel,
+            created_by: user.id
+          }
+        ])
+        .select()
+        .single();
+
+      if (channelError) throw channelError;
+
+      // If it's a private channel, add the creator as a member
+      if (isPrivateChannel) {
+        const { error: memberError } = await supabase
+          .from('channel_members')
+          .insert([
+            {
+              channel_id: channel.id,
+              user_id: user.id
+            }
+          ]);
+
+        if (memberError) throw memberError;
+      }
+
+      setChannels(prev => [...prev, channel]);
+      setNewChannelName('');
+      setIsPrivateChannel(false);
+      setIsChannelDialogOpen(false);
+      onChannelSelect(channel.id, 'channel');
+    } catch (error) {
+      console.error('Error creating channel:', error);
+      toast({
+        title: "Error",
+        description: "Could not create channel",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="w-64 bg-muted h-screen flex flex-col">
       <ScrollArea className="flex-1">
@@ -253,7 +308,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsDialogOpen(true)}
+              onClick={() => setIsChannelDialogOpen(true)}
               className="h-5 w-5"
             >
               <Plus className="h-4 w-4" />
@@ -302,7 +357,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsDialogOpen(true)}
+              onClick={() => setIsDMDialogOpen(true)}
               className="h-5 w-5"
             >
               <Plus className="h-4 w-4" />
@@ -342,8 +397,43 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
         </div>
       </ScrollArea>
       
-      {/* New Channel/DM Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* New Channel Dialog */}
+      <Dialog open={isChannelDialogOpen} onOpenChange={setIsChannelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create a new channel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="channelName">Channel name</Label>
+              <Input
+                id="channelName"
+                value={newChannelName}
+                onChange={(e) => setNewChannelName(e.target.value)}
+                placeholder="e.g. marketing"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="private"
+                checked={isPrivateChannel}
+                onCheckedChange={(checked) => setIsPrivateChannel(checked as boolean)}
+              />
+              <Label htmlFor="private">Make channel private</Label>
+            </div>
+            <Button 
+              className="w-full" 
+              onClick={createChannel}
+              disabled={!newChannelName.trim()}
+            >
+              Create Channel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Direct Message Dialog */}
+      <Dialog open={isDMDialogOpen} onOpenChange={setIsDMDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Start a conversation</DialogTitle>
@@ -355,13 +445,13 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
               <Button
                   key={member.user_id}
                   variant="ghost"
-                className="w-full justify-start"
+                  className="w-full justify-start"
                   onClick={async () => {
                     try {
                       const channelId = await createDMChannel(member.user_id)
                       if (channelId) {
                         onChannelSelect(channelId, 'dm')
-                        setIsDialogOpen(false)
+                        setIsDMDialogOpen(false)
                       } else {
                         toast({
                           title: "Error",
