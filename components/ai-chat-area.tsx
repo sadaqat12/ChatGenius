@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useParams } from 'next/navigation';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export function AIChatArea() {
   const params = useParams();
@@ -36,8 +37,16 @@ export function AIChatArea() {
   return (
     <div className="flex flex-col h-full w-full max-w-none">
       <div className="flex items-center gap-2 px-4 py-3 border-b">
-        <Bot className="h-5 w-5" />
-        <h2 className="font-semibold">AI Assistant</h2>
+        <Avatar className="h-8 w-8">
+          <AvatarImage src="/kia-avatar.svg" alt="KIA" />
+          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
+            KIA
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <h2 className="font-semibold">KIA</h2>
+          <p className="text-xs text-muted-foreground">Know It All Bot</p>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 p-4">
@@ -53,7 +62,12 @@ export function AIChatArea() {
               )}
             >
               {message.role === 'assistant' && (
-                <Bot className="h-6 w-6 flex-shrink-0" />
+                <Avatar className="h-8 w-8 flex-shrink-0">
+                  <AvatarImage src="/kia-avatar.svg" alt="KIA" />
+                  <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
+                    KIA
+                  </AvatarFallback>
+                </Avatar>
               )}
               <div className="flex flex-col gap-2">
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>

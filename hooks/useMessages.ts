@@ -450,8 +450,10 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
           message_id: messageId,
           user_id: user.id,
           emoji,
-          message_type: messageType || 'channel',
-          created_by: user.id
+          ...(messageType === 'channel' ? { 
+            message_type: messageType,
+            created_by: user.id 
+          } : {})
         })
 
       if (error) {

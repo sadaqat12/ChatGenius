@@ -264,21 +264,21 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
           {filteredMessages.map(message => (
             <div key={message.id} className="flex items-start gap-3">
               <Avatar>
-                <AvatarImage src={message.user.avatar_url || undefined} />
-                <AvatarFallback>{message.user.name[0]}</AvatarFallback>
+                <AvatarImage src={message.user?.avatar_url || undefined} />
+                <AvatarFallback>{message.user?.name?.[0] || '?'}</AvatarFallback>
                 <div 
                   className={cn(
                     "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background",
-                    message.user.status === 'online' && "bg-green-500",
-                    message.user.status === 'away' && "bg-yellow-500",
-                    message.user.status === 'busy' && "bg-red-500",
-                    message.user.status === 'offline' && "bg-gray-500"
+                    message.user?.status === 'online' && "bg-green-500",
+                    message.user?.status === 'away' && "bg-yellow-500",
+                    message.user?.status === 'busy' && "bg-red-500",
+                    message.user?.status === 'offline' && "bg-gray-500"
                   )}
                 />
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{message.user.name}</span>
+                  <span className="font-semibold">{message.user?.name}</span>
                   <span className="text-xs text-muted-foreground">
                     {new Date(message.created_at).toLocaleString()}
                   </span>

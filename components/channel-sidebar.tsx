@@ -280,7 +280,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
 
         {/* AI Assistant Section */}
         <div className="px-3 py-2">
-          <h2 className="text-lg font-semibold mb-2">AI Assistant</h2>
+          <h2 className="text-lg font-semibold mb-2">KIA</h2>
           <button
             onClick={() => onChannelSelect('ai', 'ai')}
             className={cn(
@@ -289,7 +289,7 @@ export function ChannelSidebar({ teamId, activeChannelId, onChannelSelect }: Cha
             )}
           >
             <Bot className="h-4 w-4" />
-            <span>AI Chat</span>
+            <span>Know It All Bot</span>
           </button>
         </div>
 
