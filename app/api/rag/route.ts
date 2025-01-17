@@ -15,9 +15,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { message, teamId, conversationHistory } = await request.json();
+    const { question, teamId, maxTokens, similarityThreshold } = await request.json();
 
-    if (!message || !teamId) {
+    if (!question || !teamId) {
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
@@ -39,16 +39,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Query using RAG service
+    // Query the RAG service
     const result = await ragService.query({
-      question: message,
+      question,
       teamId,
-      conversationHistory
+      maxTokens,
+      similarityThreshold
     });
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('AI chat error:', error);
+    console.error('RAG query error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

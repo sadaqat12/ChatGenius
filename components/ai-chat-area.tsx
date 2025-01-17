@@ -1,125 +1,117 @@
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bot, Send } from "lucide-react"
-import { cn } from "@/lib/utils"
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-  debug?: {
-    similarTweets?: Array<{
-      content: string
-      similarity: number
-    }>
-  }
-}
+import { useRAG } from '@/hooks/useRAG';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Bot, Send } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useParams } from 'next/navigation';
 
 export function AIChatArea() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const params = useParams();
+  const teamId = params.teamId as string;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || loading) return
+  const {
+    messages,
+    context,
+    isLoading,
+    error,
+    askQuestion,
+    clearConversation
+  } = useRAG({
+    teamId,
+    similarityThreshold: 0.7
+  });
 
-    const userMessage = input.trim()
-    setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    setLoading(true)
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const input = form.message.value;
+    
+    if (!input.trim() || isLoading) return;
+    form.reset();
 
-    try {
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
-      })
-
-      if (!response.ok) throw new Error('Failed to get response')
-
-      const data = await response.json()
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: data.message,
-        debug: data.debug
-      }])
-    } catch (error) {
-      console.error('Error in AI chat:', error)
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again.' 
-      }])
-    } finally {
-      setLoading(false)
-    }
-  }
+    await askQuestion(input.trim());
+  };
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
-      <div className="border-b p-4 flex items-center gap-2">
+    <div className="flex flex-col h-full w-full max-w-none">
+      <div className="flex items-center gap-2 px-4 py-3 border-b">
         <Bot className="h-5 w-5" />
         <h2 className="font-semibold">AI Assistant</h2>
       </div>
 
       <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-4xl mx-auto">
           {messages.map((message, i) => (
-            <div key={i}>
-              <div
-                className={cn(
-                  "flex items-start gap-3 rounded-lg p-4",
-                  message.role === 'assistant' 
-                    ? "bg-gray-100" 
-                    : "bg-blue-500 text-white"
-                )}
-              >
-                {message.role === 'assistant' && (
-                  <Bot className="h-5 w-5 mt-1" />
-                )}
-                <div className="flex-1">
-                  {message.content}
-                </div>
-              </div>
-              {/* Show debug info in development */}
-              {process.env.NODE_ENV === 'development' && message.debug?.similarTweets && (
-                <div className="mt-2 text-xs text-gray-500 p-2 border rounded">
-                  <div className="font-semibold mb-1">Similar Tweets:</div>
-                  {message.debug.similarTweets.map((tweet, j) => (
-                    <div key={j} className="mb-1">
-                      • {tweet.content} 
-                      <span className="text-gray-400">
-                        (Similarity: {(tweet.similarity * 100).toFixed(1)}%)
-                      </span>
-                    </div>
-                  ))}
-                </div>
+            <div
+              key={i}
+              className={cn(
+                "flex gap-3 p-4 rounded-lg max-w-[80%]",
+                message.role === 'user' 
+                  ? "bg-secondary ml-auto" 
+                  : "bg-muted mr-auto"
               )}
+            >
+              {message.role === 'assistant' && (
+                <Bot className="h-6 w-6 flex-shrink-0" />
+              )}
+              <div className="flex flex-col gap-2">
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'assistant' && context && context.messages.length > 0 && (
+                  <div className="text-xs text-muted-foreground mt-2 border-t pt-2">
+                    <p className="font-semibold mb-1">Related Messages:</p>
+                    <div className="space-y-2">
+                      {context.messages.map((msg) => (
+                        <div key={msg.id} className="p-2 rounded bg-background/50">
+                          <p className="mb-1">{msg.content}</p>
+                          <p className="text-xs opacity-50">
+                            Similarity: {(msg.similarity * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
-          {loading && (
-            <div className="flex items-start gap-3 rounded-lg p-4 bg-gray-100">
-              <Bot className="h-5 w-5 mt-1" />
-              <div className="flex-1">
-                Thinking...
-              </div>
+          {isLoading && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Bot className="h-5 w-5 animate-spin" />
+              <p>Thinking...</p>
+            </div>
+          )}
+          {error && (
+            <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-lg">
+              Error: {error.message}
             </div>
           )}
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t flex gap-2">
-        <Input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Ask me anything..."
-          disabled={loading}
-        />
-        <Button type="submit" disabled={loading}>
-          <Send className="h-4 w-4" />
-        </Button>
-      </form>
+      <div className="p-4 border-t bg-background">
+        <form onSubmit={handleSubmit} className="flex gap-2 max-w-4xl mx-auto">
+          <Input
+            name="message"
+            placeholder="Ask a question..."
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button type="submit" size="icon" disabled={isLoading}>
+            <Send className="h-4 w-4" />
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            size="icon"
+            onClick={clearConversation}
+            disabled={isLoading || messages.length === 0}
+            title="Clear conversation"
+          >
+            <Bot className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
     </div>
-  )
+  );
 } 
