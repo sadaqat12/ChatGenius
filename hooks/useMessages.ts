@@ -165,10 +165,10 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         })
       )
 
-      const formattedMessages = data.map((message, index) => ({
-        ...formatMessage(message, messageType),
+      const formattedMessages = await Promise.all(data.map(async (message, index) => ({
+        ...await formatMessage(message, messageType),
         thread_count: threadCounts[index]
-      }))
+      })))
       
       setMessages(formattedMessages)
       setIsLoading(false)
@@ -179,7 +179,14 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
     }
   }
 
-  const formatMessage = (message: any, type: 'channel' | 'direct' = 'channel'): Message => {
+  const getSignedUrl = async (path: string) => {
+    const { data: { signedUrl } } = await supabase.storage
+      .from('message-attachments')
+      .createSignedUrl(path, 60 * 60 * 24 * 7) // 7 days expiry
+    return signedUrl
+  }
+
+  const formatMessage = async (message: any, type: 'channel' | 'direct' = 'channel'): Promise<Message> => {
     const userField = type === 'direct' ? 'sender' : 'user'
     const user = message[userField]
     
@@ -190,7 +197,10 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
         content: message.content,
         channel_id: message.channel_id,
         parent_id: type === 'direct' ? null : message.parent_id,
-        file: message.file,
+        file: message.file ? {
+          ...message.file,
+          url: message.file.path ? await getSignedUrl(message.file.path) : message.file.url
+        } : null,
         created_at: message.created_at,
         user: {
           id: 'unknown',
@@ -212,7 +222,10 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
       content: message.content,
       channel_id: message.channel_id,
       parent_id: type === 'direct' ? null : message.parent_id,
-      file: message.file,
+      file: message.file ? {
+        ...message.file,
+        url: message.file.path ? await getSignedUrl(message.file.path) : message.file.url
+      } : null,
       created_at: message.created_at,
       user: {
         id: user.id,
@@ -303,20 +316,22 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
       let fileData = null
       if (file) {
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(`messages/${Date.now()}-${file.name}`, file)
+          .from('message-attachments')
+          .upload(`${Date.now()}-${file.name}`, file)
 
         if (uploadError) throw uploadError
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('files')
-          .getPublicUrl(uploadData.path)
+        const { data: { signedUrl } } = await supabase.storage
+          .from('message-attachments')
+          .createSignedUrl(uploadData.path, 60 * 60 * 24 * 7) // 7 days expiry
+
+        if (!signedUrl) throw new Error('Failed to generate signed URL')
 
         fileData = {
           name: file.name,
           type: file.type,
           size: file.size,
-          url: publicUrl,
+          url: signedUrl,
           path: uploadData.path
         }
       }
