@@ -64,7 +64,7 @@ export function EmojiReactions({ messageId, reactions = [], show = true, onReact
           <div className="flex space-x-2">
             {emojiOptions.map(({ emoji, icon: Icon }) => (
               <Button
-                key={emoji}
+                key={`emoji-option-${emoji}`}
                 variant="ghost"
                 size="sm"
                 className="flex items-center justify-center w-8 h-8 p-0"
