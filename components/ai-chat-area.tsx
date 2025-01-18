@@ -99,6 +99,28 @@ export function AIChatArea() {
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4 max-w-4xl mx-auto">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Avatar className="h-16 w-16 mb-4">
+                <AvatarImage src="/kia-avatar.svg" alt="KIA" />
+                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xl">
+                  KIA
+                </AvatarFallback>
+              </Avatar>
+              <h3 className="text-xl font-semibold mb-2">Welcome to KIA - Your Know It All Assistant!</h3>
+              <div className="text-muted-foreground max-w-lg space-y-4">
+                <p>I can help you with various tasks in your workspace:</p>
+                <ul className="text-left space-y-2 mx-auto max-w-md">
+                  <li>• Send messages to team members</li>
+                  <li>• Create and manage channels</li>
+                  <li>• Coordinate team events and meetings</li>
+                  <li>• Answer questions about your team's conversations</li>
+                  <li>• Help you find relevant information from past discussions</li>
+                </ul>
+                <p className="pt-2">Just type your question or request below to get started!</p>
+              </div>
+            </div>
+          )}
           {messages.map((message, i) => (
             <div
               key={i}

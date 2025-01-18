@@ -57,6 +57,11 @@ export interface Message {
   };
   thread_count: number;
   reactions: Reaction[];
+  extension?: {
+    isEventCoordination?: boolean;
+    coordinationId?: string;
+    status?: 'collecting_responses' | 'analyzing' | 'completed';
+  };
 }
 
 export interface Reaction {
