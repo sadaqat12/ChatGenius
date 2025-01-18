@@ -20,6 +20,14 @@ interface UseRAGReturn {
       similarity: number;
     }>;
   } | null;
+  lastAction: {
+    type: 'send_message';
+    payload: {
+      recipient: string;
+      message: string;
+      time?: string;
+    };
+  } | null;
 }
 
 export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions): UseRAGReturn {
@@ -27,20 +35,27 @@ export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions
   const [error, setError] = useState<Error | null>(null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [currentContext, setCurrentContext] = useState<UseRAGReturn['context']>(null);
+  const [lastAction, setLastAction] = useState<UseRAGReturn['lastAction']>(null);
 
   const askQuestion = useCallback(async (question: string) => {
     setIsLoading(true);
     setError(null);
+    setLastAction(null);
 
     try {
-      // Add user's question to conversation
+      // Create user's question message
       const userMessage: ConversationMessage = {
         role: 'user',
         content: question
       };
-      setMessages(prev => [...prev, userMessage]);
 
-      // Make API request
+      // Create updated conversation history including the new message
+      const updatedHistory = [...messages, userMessage];
+      
+      // Update messages state
+      setMessages(updatedHistory);
+
+      // Make API request with the updated history
       const response = await fetch('/api/rag', {
         method: 'POST',
         headers: {
@@ -51,7 +66,7 @@ export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions
           teamId,
           maxTokens,
           similarityThreshold,
-          conversationHistory: messages
+          conversationHistory: updatedHistory
         })
       });
 
@@ -70,6 +85,11 @@ export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions
 
       // Update context
       setCurrentContext(result.context);
+
+      // Handle action if present
+      if (result.action) {
+        setLastAction(result.action);
+      }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('An error occurred'));
     } finally {
@@ -81,6 +101,7 @@ export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions
     setMessages([]);
     setCurrentContext(null);
     setError(null);
+    setLastAction(null);
   }, []);
 
   return {
@@ -89,6 +110,7 @@ export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions
     messages,
     askQuestion,
     clearConversation,
-    context: currentContext
+    context: currentContext,
+    lastAction
   };
 } 

@@ -14,6 +14,12 @@ const supabase = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Initialize service role client for bot operations
+const serviceClient = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 export interface SimilarMessage {
   id: string;
   content: string;
@@ -25,19 +31,32 @@ export interface ConversationMessage {
   content: string;
 }
 
+interface ActionIntent {
+  type: 'send_message';
+  payload: {
+    recipient: string;
+    message: string;
+    time?: string;
+  };
+}
+
+interface RAGResponse {
+  answer: string;
+  context: {
+    messages: SimilarMessage[];
+  };
+  action?: ActionIntent;
+}
+
 export interface RAGService {
   query(params: {
     question: string;
     teamId: string;
+    userId: string;
     maxTokens?: number;
     similarityThreshold?: number;
     conversationHistory?: ConversationMessage[];
-  }): Promise<{
-    answer: string;
-    context: {
-      messages: SimilarMessage[];
-    };
-  }>;
+  }): Promise<RAGResponse>;
 }
 
 export class OpenAIRAGService implements RAGService {
@@ -77,34 +96,188 @@ export class OpenAIRAGService implements RAGService {
     return messages || [];
   }
 
+  private async findUserByName(name: string): Promise<{ id: string; email: string } | null> {
+    const { data: profile, error } = await serviceClient
+      .from('user_profiles')
+      .select('user_id')
+      .ilike('name', `%${name}%`)
+      .limit(1)
+      .single();
+
+    if (error || !profile) return null;
+
+    // Get the user's email from auth.users
+    const { data: user, error: userError } = await serviceClient
+      .from('users')
+      .select('email')
+      .eq('id', profile.user_id)
+      .single();
+
+    if (userError || !user) return null;
+    
+    return {
+      id: profile.user_id,
+      email: user.email
+    };
+  }
+
+  private async getUserName(userId: string): Promise<string | null> {
+    try {
+      const { data: profile, error } = await serviceClient
+        .from('user_profiles')
+        .select('name')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error getting user name:', error);
+        return null;
+      }
+
+      return profile?.name || null;
+    } catch (error) {
+      console.error('Error in getUserName:', error);
+      return null;
+    }
+  }
+
+  private async createDirectMessage(params: {
+    senderId: string;
+    recipientId: string;
+    content: string;
+  }): Promise<void> {
+    const { senderId, recipientId, content } = params;
+
+    try {
+      // First, find an existing DM channel where both users are participants
+      const { data: channels, error: findError } = await serviceClient
+        .from('direct_message_participants')
+        .select('channel_id')
+        .eq('user_id', senderId);
+
+      if (findError) {
+        console.error('Error finding channels:', findError);
+        throw new Error('Failed to find DM channels');
+      }
+
+      let channelId: string | null = null;
+
+      if (channels && channels.length > 0) {
+        // Check which of these channels also has the recipient
+        const { data: sharedChannel, error: sharedError } = await serviceClient
+          .from('direct_message_participants')
+          .select('channel_id')
+          .eq('user_id', recipientId)
+          .in('channel_id', channels.map(c => c.channel_id))
+          .limit(1)
+          .single();
+
+        if (!sharedError && sharedChannel) {
+          channelId = sharedChannel.channel_id;
+        }
+      }
+
+      if (!channelId) {
+        // Create a new DM channel
+        const { data: newChannel, error: channelError } = await serviceClient
+          .from('direct_message_channels')
+          .insert({})
+          .select('id')
+          .single();
+
+        if (channelError) {
+          console.error('Error creating DM channel:', channelError);
+          throw new Error('Failed to create DM channel');
+        }
+        if (!newChannel) throw new Error('No channel ID returned');
+        
+        channelId = newChannel.id;
+
+        // Add both users as participants
+        const { error: participantsError } = await serviceClient
+          .from('direct_message_participants')
+          .insert([
+            { channel_id: channelId, user_id: senderId },
+            { channel_id: channelId, user_id: recipientId }
+          ]);
+
+        if (participantsError) {
+          console.error('Error adding participants:', participantsError);
+          throw new Error('Failed to add participants to DM channel');
+        }
+      }
+
+      // Send the message
+      const { error: messageError } = await serviceClient
+        .from('direct_messages')
+        .insert({
+          channel_id: channelId,
+          sender_id: senderId,
+          content: content
+        });
+
+      if (messageError) {
+        console.error('Error sending message:', messageError);
+        throw new Error('Failed to send message');
+      }
+    } catch (error) {
+      console.error('Direct message error:', error);
+      throw error;
+    }
+  }
+
   private async generateAnswer(params: {
     question: string;
     context: string;
     conversationHistory?: ConversationMessage[];
-  }): Promise<string> {
+  }): Promise<{ answer: string; action?: ActionIntent }> {
     const { question, context, conversationHistory = [] } = params;
+
+    // Filter out any messages with null content
+    const validHistory = conversationHistory.filter(msg => msg && msg.content && msg.role);
 
     const messages = [
       {
         role: 'system' as const,
         content: `You are a helpful AI assistant that answers questions based on the provided context. 
+        You can also perform actions like sending messages to team members.
+        
+        When a user asks you to send a message to someone:
+        1. Extract the recipient's name (partial names like "Sarah" for "Sarah Chen" are supported)
+        2. Extract the message content
+        3. Extract any time/scheduling information
+        4. Format your response as JSON with:
+           {
+             "answer": "I'll send your message to [recipient]",
+             "action": {
+               "type": "send_message",
+               "payload": {
+                 "recipient": "[recipient name - can be partial]",
+                 "message": "[Message via KIA] [message content]",
+                 "time": "[optional time info]"
+               }
+             }
+           }
+        
+        Always format messages as "[Message via KIA] [content]" where {user} is the name of the person asking you to send the message.
+        This helps recipients know who originally sent the message.
+        
         Always ground your answers in the context provided. If the context doesn't contain enough 
         information to answer the question confidently, acknowledge that and suggest what additional 
         information might be needed.
         
-        When referring to previous conversation, maintain consistency with your earlier responses.`
+        When referring to previous conversation, maintain consistency with your earlier responses.
+        
+        Remember to ALWAYS format your response as a JSON object with an "answer" field, and optionally an "action" field for message sending.
+        Note: For finding users, you can use partial names - the system will match them to full names.`
       },
+      ...validHistory,
       {
         role: 'user' as const,
         content: `Context from team messages:
         ${context}
         
-        Previous conversation:
-        ${conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
-        
-        Current question: ${question}
-        
-        Please provide a clear and concise answer based on the context above and previous conversation.`
+        Question: ${question}`
       }
     ];
 
@@ -112,47 +285,99 @@ export class OpenAIRAGService implements RAGService {
       model: 'gpt-4-turbo-preview',
       messages,
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 500,
+      response_format: { type: "json_object" }
     });
 
-    return response.choices[0].message.content || 'No answer generated';
+    const content = response.choices[0].message.content;
+    if (!content) throw new Error('No response from OpenAI');
+
+    try {
+      const result = JSON.parse(content);
+      return {
+        answer: result.answer,
+        action: result.action
+      };
+    } catch (e) {
+      return {
+        answer: content
+      };
+    }
   }
 
   async query(params: {
     question: string;
     teamId: string;
+    userId: string;
     maxTokens?: number;
     similarityThreshold?: number;
     conversationHistory?: ConversationMessage[];
-  }) {
-    // Generate embedding for the question
-    const questionEmbedding = await this.generateEmbedding(params.question);
-
-    // Find similar messages
-    const similarMessages = await this.findSimilarMessages({
-      embedding: questionEmbedding,
-      teamId: params.teamId,
-      similarityThreshold: params.similarityThreshold
-    });
-
-    // Format context from similar messages
-    const context = similarMessages
-      .map(msg => `Message: ${msg.content}`)
-      .join('\n\n');
-
-    // Generate answer using context and conversation history
-    const answer = await this.generateAnswer({
-      question: params.question,
-      context,
-      conversationHistory: params.conversationHistory
-    });
-
-    return {
-      answer,
-      context: {
-        messages: similarMessages
+  }): Promise<RAGResponse> {
+    try {
+      // Get sender's name first
+      const senderName = await this.getUserName(params.userId);
+      if (!senderName) {
+        throw new Error('Could not find sender name');
       }
-    };
+
+      // Generate embedding for the question
+      const embedding = await this.generateEmbedding(params.question);
+
+      // Find similar messages
+      const similarMessages = await this.findSimilarMessages({
+        embedding,
+        teamId: params.teamId,
+        similarityThreshold: params.similarityThreshold
+      });
+
+      // Build context from similar messages
+      const context = similarMessages
+        .map(msg => `Message: ${msg.content}`)
+        .join('\n\n');
+
+      // Generate answer using OpenAI
+      const { answer, action } = await this.generateAnswer({
+        question: `[Sender: ${senderName}] ${params.question}`,
+        context,
+        conversationHistory: params.conversationHistory
+      });
+
+      // If there's a send_message action, handle it
+      if (action?.type === 'send_message') {
+        const recipient = await this.findUserByName(action.payload.recipient);
+        if (!recipient) {
+          return {
+            answer: `I couldn't find a user named "${action.payload.recipient}". Please try again with a different name.`,
+            context: { messages: similarMessages }
+          };
+        }
+
+        // Format the message with sender's name
+        const messageWithSender = action.payload.message.replace('{user}', senderName);
+
+        // Send the direct message
+        await this.createDirectMessage({
+          senderId: params.userId,
+          recipientId: recipient.id,
+          content: messageWithSender
+        });
+      }
+
+      return {
+        answer,
+        context: { messages: similarMessages },
+        action: action ? {
+          ...action,
+          payload: {
+            ...action.payload,
+            message: action.payload.message.replace('{user}', senderName)
+          }
+        } : undefined
+      };
+    } catch (error) {
+      console.error('RAG query error:', error);
+      throw error;
+    }
   }
 }
 
