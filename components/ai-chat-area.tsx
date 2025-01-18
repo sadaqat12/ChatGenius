@@ -2,12 +2,18 @@ import { useRAG } from '@/hooks/useRAG';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send } from "lucide-react";
+import { Bot, Send, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useParams } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+
+interface ContextMessage {
+  id: string;
+  content: string;
+  similarity: number;
+}
 
 export function AIChatArea() {
   const params = useParams();
@@ -45,19 +51,40 @@ export function AIChatArea() {
     await askQuestion(input.trim());
   };
 
+  const handleClearConversation = async () => {
+    try {
+      await clearConversation();
+      toast.success('Conversation history cleared');
+    } catch (err) {
+      console.error('Error clearing conversation:', err);
+      toast.error('Failed to clear conversation history');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full max-w-none">
-      <div className="flex items-center gap-2 px-4 py-3 border-b">
-        <Avatar className="h-8 w-8">
-          <AvatarImage src="/kia-avatar.svg" alt="KIA" />
-          <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
-            KIA
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <h2 className="font-semibold">KIA</h2>
-          <p className="text-xs text-muted-foreground">Know It All Bot</p>
+      <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center gap-2">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src="/kia-avatar.svg" alt="KIA" />
+            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white">
+              KIA
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h2 className="font-semibold">KIA</h2>
+            <p className="text-xs text-muted-foreground">Know It All Bot</p>
+          </div>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleClearConversation}
+          disabled={isLoading || messages.length === 0}
+          title="Clear conversation history"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
       <ScrollArea className="flex-1 p-4">
@@ -86,7 +113,7 @@ export function AIChatArea() {
                   <div className="text-xs text-muted-foreground mt-2 border-t pt-2">
                     <p className="font-semibold mb-1">Related Messages:</p>
                     <div className="space-y-2">
-                      {context.messages.map((msg) => (
+                      {(context.messages as ContextMessage[]).map((msg) => (
                         <div key={msg.id} className="p-2 rounded bg-background/50">
                           <p className="mb-1">{msg.content}</p>
                           <p className="text-xs opacity-50">
@@ -124,16 +151,6 @@ export function AIChatArea() {
           />
           <Button type="submit" size="icon" disabled={isLoading}>
             <Send className="h-4 w-4" />
-          </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
-            size="icon"
-            onClick={clearConversation}
-            disabled={isLoading || messages.length === 0}
-            title="Clear conversation"
-          >
-            <Bot className="h-4 w-4" />
           </Button>
         </form>
       </div>

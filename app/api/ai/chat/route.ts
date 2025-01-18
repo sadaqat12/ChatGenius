@@ -43,7 +43,8 @@ export async function POST(request: Request) {
     const result = await ragService.query({
       question: message,
       teamId,
-      conversationHistory
+      userId: session.user.id,
+      conversationHistory: conversationHistory || []
     });
 
     return NextResponse.json(result);
