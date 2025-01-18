@@ -60,8 +60,6 @@ export function TeamSidebar({ teamId }: TeamSidebarProps) {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('New team membership:', payload)
-          // Fetch the new team data and update the list
           fetchTeams()
         }
       )

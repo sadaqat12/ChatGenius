@@ -22,79 +22,30 @@ export function useTeamInvites() {
 
   const fetchInvites = async () => {
     try {
-      console.log('Fetching invites...')
       const { data: { session } } = await supabase.auth.getSession()
-      console.log('Current session:', session?.user?.email)
-      if (!session?.user?.email) {
-        console.log('No session or email found')
-        return
-      }
+      if (!session?.user) return
 
-      // First try to get just the invites without the join
-      const { data: rawInvites, error: inviteError } = await supabase
+      const { data: invites, error } = await supabase
         .from('team_invites')
-        .select('*')
+        .select(`
+          id,
+          team_id,
+          email,
+          status,
+          team:teams (
+            id,
+            name,
+            description
+          )
+        `)
         .eq('email', session.user.email)
         .eq('status', 'pending')
-        .order('created_at', { ascending: false })
 
-      if (inviteError) {
-        console.error('Error fetching raw invites:', inviteError)
-        throw inviteError
-      }
+      if (error) throw error
 
-      console.log('Raw invites found:', rawInvites)
-
-      if (rawInvites && rawInvites.length > 0) {
-        // If we found invites, check if their teams exist
-        const teamIds = rawInvites.map(invite => invite.team_id)
-        console.log('Checking for teams with IDs:', teamIds)
-
-        // First try to get the team directly without any RLS policies
-        const { data: publicTeams, error: publicTeamError } = await supabase
-          .from('teams')
-          .select('*')
-          .eq('id', teamIds[0])
-
-        console.log('Direct team query result:', publicTeams)
-        
-        if (publicTeamError) {
-          console.error('Error in direct team query:', publicTeamError)
-        }
-
-        // Now try with the normal query
-        const { data: teams, error: teamError } = await supabase
-          .from('teams')
-          .select('id, name, description')
-          .in('id', teamIds)
-
-        if (teamError) {
-          console.error('Error fetching teams:', teamError)
-          throw teamError
-        }
-
-        console.log('Teams found through normal query:', teams)
-
-        // Now get the full invites with team data
-        const { data, error } = await supabase
-          .from('team_invites')
-          .select(`
-            *,
-            team:teams!left (
-              id,
-              name,
-              description
-            )
-          `)
-          .eq('email', session.user.email)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        console.log('Full invites with team data:', data)
-        setInvites(data || [])
+      if (invites && invites.length > 0) {
+        setInvites(invites)
       } else {
-        console.log('No pending invites found')
         setInvites([])
       }
     } catch (error) {

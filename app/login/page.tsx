@@ -34,19 +34,15 @@ export default function LoginPage() {
     }
     
     setLastAttempt(now)
-    console.log('Login attempt started')
     
     try {
       setLoading(true)
       setError(null)
 
-      console.log('Attempting to sign in with:', { email })
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-
-      console.log('Sign in response:', { data, error })
       
       if (error) {
         if (error.message.includes('rate limit')) {
@@ -56,10 +52,8 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        console.log('Login successful, redirecting to /teams')
         try {
           await router.push('/teams')
-          console.log('Navigation completed')
         } catch (navError) {
           console.error('Navigation error:', navError)
           // Fallback navigation

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from '@/lib/supabase'
 import { ChatGeniusHeader } from '@/components/chat-genius-header'
-import { UserPlus, X } from 'lucide-react'
+import { UserPlus, X, Shield, ShieldOff, UserX } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface TeamSettings {
   name: string
@@ -30,6 +31,19 @@ interface PendingInvite {
   status: string
 }
 
+interface TeamMember {
+  team_id: string
+  user_id: string
+  role: string
+  users: {
+    email: string
+    user_profiles: {
+      name: string
+      avatar_url: string | null
+    }
+  }
+}
+
 export default function TeamSettingsPage({ params }: { params: { teamId: string } }) {
   const [settings, setSettings] = useState<TeamSettings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,6 +52,8 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
   const [inviting, setInviting] = useState(false)
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [currentUserRole, setCurrentUserRole] = useState<string>('')
   const router = useRouter()
   const { toast } = useToast()
 
@@ -45,6 +61,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
     fetchTeamSettings()
     checkAdminAccess()
     fetchPendingInvites()
+    fetchTeamMembers()
   }, [params.teamId])
 
   const checkAdminAccess = async () => {
@@ -62,7 +79,7 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         .eq('user_id', session.user.id)
         .single()
 
-      if (error || !membership || (membership.role !== 'admin' && membership.role !== 'owner')) {
+      if (error || !membership) {
         router.push(`/teams/${params.teamId}`)
         toast({
           title: "Access denied",
@@ -71,6 +88,18 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
         })
         return false
       }
+
+      if (membership.role !== 'admin' && membership.role !== 'owner') {
+        router.push(`/teams/${params.teamId}`)
+        toast({
+          title: "Access denied",
+          description: "You must be an admin to access team settings.",
+          variant: "destructive",
+        })
+        return false
+      }
+
+      setCurrentUserRole(membership.role)
       return true
     } catch (error) {
       console.error('Error checking admin access:', error)
@@ -227,6 +256,90 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
     }
   }
 
+  const fetchTeamMembers = async () => {
+    try {
+      const { data: members, error } = await supabase
+        .from('team_members')
+        .select(`
+          team_id,
+          user_id,
+          role,
+          users (
+            email,
+            user_profiles (
+              name,
+              avatar_url
+            )
+          )
+        `)
+        .eq('team_id', params.teamId)
+        .order('role', { ascending: false })
+
+      if (error) throw error
+      setTeamMembers(members)
+    } catch (error) {
+      console.error('Error fetching team members:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load team members",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .update({ role: newRole })
+        .eq('team_id', params.teamId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      setTeamMembers(prev => prev.map(member => 
+        member.user_id === userId ? { ...member, role: newRole } : member
+      ))
+
+      toast({
+        title: "Success",
+        description: "Member role updated successfully",
+      })
+    } catch (error) {
+      console.error('Error updating member role:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update member role",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRemoveMember = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('team_id', params.teamId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      setTeamMembers(prev => prev.filter(member => member.user_id !== userId))
+      toast({
+        title: "Success",
+        description: "Member removed successfully",
+      })
+    } catch (error) {
+      console.error('Error removing member:', error)
+      toast({
+        title: "Error",
+        description: "Failed to remove member",
+        variant: "destructive",
+      })
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -338,6 +451,65 @@ export default function TeamSettingsPage({ params }: { params: { teamId: string 
                   {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow-sm rounded-lg p-6">
+            <h2 className="text-lg font-semibold mb-4">Team Members</h2>
+            <div className="space-y-4">
+              {teamMembers.map((member) => {
+                const userProfile = member.users.user_profiles;
+                const initials = userProfile.name
+                  ? userProfile.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                  : 'U';
+                
+                return (
+                  <div key={`${member.team_id}-${member.user_id}`} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={userProfile.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{userProfile.name}</p>
+                        <p className="text-sm text-gray-500">{member.users.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {member.role !== 'owner' && currentUserRole === 'owner' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRoleChange(member.user_id, member.role === 'admin' ? 'member' : 'admin')}
+                        >
+                          {member.role === 'admin' ? (
+                            <ShieldOff className="h-4 w-4 mr-2" />
+                          ) : (
+                            <Shield className="h-4 w-4 mr-2" />
+                          )}
+                          {member.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                        </Button>
+                      )}
+                      {member.role !== 'owner' && (currentUserRole === 'owner' || (currentUserRole === 'admin' && member.role === 'member')) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member.user_id)}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                        >
+                          <UserX className="h-4 w-4 mr-2" />
+                          Remove
+                        </Button>
+                      )}
+                      {member.role === 'owner' && (
+                        <span className="text-sm text-gray-500 italic">Owner</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
