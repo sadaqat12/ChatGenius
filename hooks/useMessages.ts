@@ -143,7 +143,7 @@ export function useMessages({ channelId, parentId, messageType }: UseMessagesOpt
       // Only add parent_id filter for channel messages
       if (messageType !== 'direct') {
         if (parentId) {
-          query = query.eq('parent_id', parentId)
+          query = query.or(`id.eq.${parentId},parent_id.eq.${parentId}`)
         } else {
           query = query.is('parent_id', null)
         }
