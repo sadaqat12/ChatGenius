@@ -44,10 +44,8 @@ export default function TeamsPage() {
   // Check auth state and fetch pending team name
   useEffect(() => {
     async function checkAuth() {
-      console.log('Teams page mounted, checking auth...')
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
-        console.log('Auth check result:', { hasSession: !!session, error })
         
         if (error) {
           console.error('Auth check error:', error)
@@ -57,14 +55,12 @@ export default function TeamsPage() {
         }
         
         if (!session?.user) {
-          console.log('No session found')
           setUser(null)
           setAuthChecked(true)
           setLoading(false)
           return
         }
         
-        console.log('Session found for user:', session.user.email)
         setUser(session.user)
         
         // Check for pending team name
@@ -78,10 +74,7 @@ export default function TeamsPage() {
           console.error('Error fetching profile:', profileError)
         }
         
-        console.log('Profile data:', profile)
-        
         if (profile?.pending_team_name) {
-          console.log('Creating team with pending name:', profile.pending_team_name)
           try {
             // First try to create the team
             const response = await fetch('/api/teams', {
@@ -92,7 +85,6 @@ export default function TeamsPage() {
 
             if (response.ok) {
               const { teamId } = await response.json()
-              console.log('Team created successfully:', teamId)
               
               // Only clear pending name after successful team creation
               const { error: clearError } = await supabase
@@ -102,7 +94,6 @@ export default function TeamsPage() {
 
               if (clearError) {
                 console.error('Error clearing pending team name:', clearError)
-                // Don't return here - we still want to redirect since team was created
               }
               
               router.push(`/teams/${teamId}`)
@@ -128,7 +119,6 @@ export default function TeamsPage() {
   // Handle redirection
   useEffect(() => {
     if (authChecked && !user && !loading) {
-      console.log('No authenticated user found, redirecting to login')
       router.push('/login')
     }
   }, [authChecked, user, loading, router])
@@ -149,8 +139,6 @@ export default function TeamsPage() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('New team membership:', payload)
-          // Fetch the new team data and update the list
           fetchTeams()
         }
       )
@@ -163,7 +151,6 @@ export default function TeamsPage() {
 
   useEffect(() => {
     if (user && !loading) {
-      console.log('User authenticated, fetching teams')
       fetchTeams()
     }
   }, [user, loading])
