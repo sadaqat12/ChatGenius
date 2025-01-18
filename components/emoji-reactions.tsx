@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Smile, ThumbsUp, Heart, PartyPopper, Angry, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { Reaction as ReactionType } from '@/types/chat'
-import { useAuth } from '@/contexts/auth-context'
-import { supabase } from '@/lib/supabase'
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react'
 
 interface EmojiReactionsProps {
   messageId: string
@@ -13,14 +12,6 @@ interface EmojiReactionsProps {
   onReactionClick: (emoji: string) => Promise<void>
   currentUserId?: string
 }
-
-const emojiOptions = [
-  { emoji: '😊', icon: Smile },
-  { emoji: '👍', icon: ThumbsUp },
-  { emoji: '❤️', icon: Heart },
-  { emoji: '🎉', icon: PartyPopper },
-  { emoji: '😠', icon: Angry },
-]
 
 export function EmojiReactions({ messageId, reactions = [], show = true, onReactionClick, currentUserId }: EmojiReactionsProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -34,12 +25,15 @@ export function EmojiReactions({ messageId, reactions = [], show = true, onReact
     setIsOpen(false)
   }
 
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    handleReact(emojiData.emoji)
+  }
+
   if (!show) return null
 
   return (
     <div className="flex space-x-2 mt-2">
       {reactions.map((reaction) => {
-        const EmojiIcon = emojiOptions.find(option => option.emoji === reaction.emoji)?.icon || Smile
         const hasReacted = currentUserId && reaction.users.some(u => u.id === currentUserId)
         return (
           <Button
@@ -49,7 +43,7 @@ export function EmojiReactions({ messageId, reactions = [], show = true, onReact
             className={`flex items-center space-x-1 ${hasReacted ? 'bg-gray-700/50' : ''}`}
             onClick={() => handleReact(reaction.emoji)}
           >
-            <EmojiIcon className="h-4 w-4" />
+            <span className="text-lg leading-none">{reaction.emoji}</span>
             <span>{reaction.count}</span>
           </Button>
         )
@@ -60,20 +54,13 @@ export function EmojiReactions({ messageId, reactions = [], show = true, onReact
             <Plus className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-2 bg-gray-800 border-gray-700">
-          <div className="flex space-x-2">
-            {emojiOptions.map(({ emoji, icon: Icon }) => (
-              <Button
-                key={`emoji-option-${emoji}`}
-                variant="ghost"
-                size="sm"
-                className="flex items-center justify-center w-8 h-8 p-0"
-                onClick={() => handleReact(emoji)}
-              >
-                <Icon className="h-5 w-5" />
-              </Button>
-            ))}
-          </div>
+        <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700">
+          <EmojiPicker
+            onEmojiClick={onEmojiClick}
+            theme="dark"
+            lazyLoadEmojis={true}
+            searchPlaceHolder="Search emoji..."
+          />
         </PopoverContent>
       </Popover>
     </div>
