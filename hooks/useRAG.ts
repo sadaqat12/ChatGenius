@@ -1,116 +1,177 @@
-import { useState, useCallback } from 'react';
-import { ConversationMessage } from '@/lib/services/rag-service';
+import { useCallback, useEffect, useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { User } from '@supabase/supabase-js';
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ChatHistoryRecord {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
+interface LastAction {
+  type: 'send_message';
+  payload: {
+    recipient: string;
+    message: string;
+    time?: string;
+  };
+}
 
 interface UseRAGOptions {
   teamId: string;
-  maxTokens?: number;
   similarityThreshold?: number;
 }
 
-interface UseRAGReturn {
-  isLoading: boolean;
-  error: Error | null;
-  messages: ConversationMessage[];
-  askQuestion: (question: string) => Promise<void>;
-  clearConversation: () => void;
-  context: {
-    messages: Array<{
-      id: string;
-      content: string;
-      similarity: number;
-    }>;
-  } | null;
-  lastAction: {
-    type: 'send_message';
-    payload: {
-      recipient: string;
-      message: string;
-      time?: string;
-    };
-  } | null;
-}
-
-export function useRAG({ teamId, maxTokens, similarityThreshold }: UseRAGOptions): UseRAGReturn {
+export function useRAG({ teamId, similarityThreshold = 0.7 }: UseRAGOptions) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [context, setContext] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [currentContext, setCurrentContext] = useState<UseRAGReturn['context']>(null);
-  const [lastAction, setLastAction] = useState<UseRAGReturn['lastAction']>(null);
+  const [lastAction, setLastAction] = useState<LastAction | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isHistoryCleared, setIsHistoryCleared] = useState(false);
+  const supabase = createClientComponentClient();
 
-  const askQuestion = useCallback(async (question: string) => {
-    setIsLoading(true);
-    setError(null);
-    setLastAction(null);
+  // Get current user
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser);
+    };
+    getUser();
+  }, [supabase.auth]);
+
+  // Load chat history when component mounts
+  useEffect(() => {
+    if (!user?.id || !teamId || isHistoryCleared) return;
+
+    const loadChatHistory = async () => {
+      try {
+        const { data, error } = await supabase
+          .rpc('get_user_chat_history', {
+            p_user_id: user.id,
+            p_team_id: teamId,
+            p_limit: 50
+          });
+
+        if (error) throw error;
+
+        // Convert and reverse the messages to show oldest first
+        const historicalMessages = (data as ChatHistoryRecord[])
+          .map(msg => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content
+          }))
+          .reverse();
+
+        setMessages(historicalMessages);
+      } catch (err) {
+        console.error('Error loading chat history:', err);
+        setError(err as Error);
+      }
+    };
+
+    loadChatHistory();
+  }, [user?.id, teamId, isHistoryCleared]);
+
+  const persistMessage = async (message: Message) => {
+    if (!user?.id) return;
 
     try {
-      // Create user's question message
-      const userMessage: ConversationMessage = {
-        role: 'user',
-        content: question
-      };
+      const { error } = await supabase
+        .from('ai_chat_history')
+        .insert({
+          user_id: user.id,
+          team_id: teamId,
+          role: message.role,
+          content: message.content
+        });
 
-      // Create updated conversation history including the new message
-      const updatedHistory = [...messages, userMessage];
-      
-      // Update messages state
-      setMessages(updatedHistory);
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error persisting message:', err);
+      // Don't set error state here to avoid disrupting the chat flow
+    }
+  };
 
-      // Make API request with the updated history
-      const response = await fetch('/api/rag', {
+  const askQuestion = useCallback(async (question: string) => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
+    setError(null);
+    setIsHistoryCleared(false); // Reset the cleared state when asking a new question
+
+    try {
+      // Add user message to state and persist
+      const userMessage = { role: 'user' as const, content: question };
+      setMessages(prev => [...prev, userMessage]);
+      await persistMessage(userMessage);
+
+      const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question,
+          message: question,
           teamId,
-          maxTokens,
-          similarityThreshold,
-          conversationHistory: updatedHistory
+          conversationHistory: messages
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get answer');
+        throw new Error('Failed to get response from AI');
       }
 
-      const result = await response.json();
+      const data = await response.json();
 
-      // Add assistant's response to conversation
-      const assistantMessage: ConversationMessage = {
-        role: 'assistant',
-        content: result.answer
-      };
+      // Add AI response to state and persist
+      const assistantMessage = { role: 'assistant' as const, content: data.answer };
       setMessages(prev => [...prev, assistantMessage]);
+      await persistMessage(assistantMessage);
 
-      // Update context
-      setCurrentContext(result.context);
-
-      // Handle action if present
-      if (result.action) {
-        setLastAction(result.action);
-      }
+      setContext(data.context);
+      setLastAction(data.action || null);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('An error occurred'));
+      setError(err as Error);
+      console.error('Error in askQuestion:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [teamId, maxTokens, similarityThreshold, messages]);
+  }, [messages, teamId, user?.id]);
 
-  const clearConversation = useCallback(() => {
-    setMessages([]);
-    setCurrentContext(null);
-    setError(null);
-    setLastAction(null);
-  }, []);
+  const clearConversation = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('ai_chat_history')
+        .delete()
+        .match({ user_id: user.id, team_id: teamId });
+
+      if (error) throw error;
+
+      setMessages([]);
+      setContext(null);
+      setLastAction(null);
+      setIsHistoryCleared(true);
+    } catch (err) {
+      console.error('Error clearing conversation:', err);
+      throw err;
+    }
+  }, [user?.id, teamId]);
 
   return {
+    messages,
+    context,
     isLoading,
     error,
-    messages,
     askQuestion,
     clearConversation,
-    context: currentContext,
     lastAction
   };
 } 
