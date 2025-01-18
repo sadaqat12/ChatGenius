@@ -15,7 +15,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { question, teamId, maxTokens, similarityThreshold } = await request.json();
+    const {
+      question,
+      teamId,
+      maxTokens,
+      similarityThreshold,
+      conversationHistory
+    } = await request.json();
 
     if (!question || !teamId) {
       return NextResponse.json(
@@ -43,8 +49,10 @@ export async function POST(request: Request) {
     const result = await ragService.query({
       question,
       teamId,
+      userId: session.user.id,
       maxTokens,
-      similarityThreshold
+      similarityThreshold,
+      conversationHistory: conversationHistory || []
     });
 
     return NextResponse.json(result);

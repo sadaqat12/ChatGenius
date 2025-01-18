@@ -6,6 +6,8 @@ import { Bot, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useParams } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 export function AIChatArea() {
   const params = useParams();
@@ -17,11 +19,20 @@ export function AIChatArea() {
     isLoading,
     error,
     askQuestion,
-    clearConversation
+    clearConversation,
+    lastAction
   } = useRAG({
     teamId,
     similarityThreshold: 0.7
   });
+
+  useEffect(() => {
+    if (lastAction?.type === 'send_message') {
+      toast.success(`Message sent to ${lastAction.payload.recipient}`, {
+        description: lastAction.payload.message
+      });
+    }
+  }, [lastAction]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
