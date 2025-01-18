@@ -424,7 +424,7 @@ export function useEventCoordination(channelId: string) {
         .insert({
           channel_id: coordination.channel_id,
           content: message,
-          user_id: user?.id,
+          user_id: process.env.NEXT_PUBLIC_AI_BOT_USER_ID,
           parent_id: coordination.message_id,
           topic: 'Event Coordination',
           extension: {
