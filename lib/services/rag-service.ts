@@ -32,7 +32,7 @@ export interface ConversationMessage {
 }
 
 interface ActionIntent {
-  type: 'send_message' | 'create_channel';
+  type: 'send_message' | 'create_channel' | 'send_channel_message';
   payload: {
     recipient?: string;
     message?: string;
@@ -40,6 +40,9 @@ interface ActionIntent {
     channel_name?: string;
     channel_description?: string;
     is_private?: boolean;
+    channel_id?: string;
+    thread_id?: string;
+    expect_responses?: boolean;
   };
 }
 
@@ -342,6 +345,23 @@ export class OpenAIRAGService implements RAGService {
                }
              }
            }
+
+        When a user asks you to coordinate a team event or meeting:
+        1. Extract the event details (what, when)
+        2. If a specific channel is mentioned, use that channel name in the payload
+        3. If no channel is specified, omit the channel_id field (it will default to #general)
+        4. Format your response as JSON with:
+           {
+             "answer": "I'll help coordinate [event type]. I'll send a message in [channel name or '#general'] to collect everyone's availability.",
+             "action": {
+               "type": "send_channel_message",
+               "payload": {
+                 "channel_id": "[optional - only if specific channel mentioned]",
+                 "message": "🗓️ Team Event Coordination\n\n[event details]\n\nPlease reply to this thread with your availability for [time frame]. I'll analyze the responses and suggest the best time that works for everyone.",
+                 "expect_responses": true
+               }
+             }
+           }
         
         Always format messages as "[Message via KIA] [content]" where {user} is the name of the person asking you to send the message.
         This helps recipients know who originally sent the message.
@@ -386,6 +406,112 @@ export class OpenAIRAGService implements RAGService {
       return {
         answer: content
       };
+    }
+  }
+
+  private async sendChannelMessage(params: {
+    channelId: string;
+    content: string;
+    userId: string;
+    parentId?: string;
+  }): Promise<string> {
+    const { channelId, content, userId, parentId } = params;
+
+    try {
+      const { data, error: messageError } = await serviceClient
+        .from('messages')
+        .insert({
+          channel_id: channelId,
+          user_id: userId,
+          content: content,
+          parent_id: parentId,
+          topic: 'event_coordination',
+          extension: {}
+        })
+        .select('id')
+        .single();
+
+      if (messageError) {
+        console.error('Error sending channel message:', messageError);
+        throw new Error('Failed to send channel message');
+      }
+
+      return data?.id;
+    } catch (error) {
+      console.error('Channel message error:', error);
+      throw error;
+    }
+  }
+
+  private async analyzeAvailabilityResponses(channelId: string, threadId: string): Promise<string[]> {
+    try {
+      // Get all responses in the thread
+      const { data: responses, error } = await serviceClient
+        .from('messages')
+        .select('content')
+        .eq('channel_id', channelId)
+        .eq('parent_id', threadId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (!responses) return [];
+
+      // Extract availability information from responses
+      // This is a simple implementation - in reality, you'd want to use NLP to parse the responses
+      const availabilities: string[] = responses.map(r => r.content);
+      
+      return availabilities;
+    } catch (error) {
+      console.error('Error analyzing responses:', error);
+      throw error;
+    }
+  }
+
+  private async sendFollowUpMessage(params: {
+    channelId: string;
+    threadId: string;
+    userId: string;
+    availabilities: string[];
+  }): Promise<void> {
+    const { channelId, threadId, userId, availabilities } = params;
+
+    try {
+      // Simple algorithm to find common availability
+      // In reality, you'd want to use a more sophisticated algorithm
+      const suggestedTime = "Based on the responses, the best time appears to be...";
+
+      const followUpMessage = `📅 Thank you everyone for sharing your availability!\n\n${suggestedTime}\n\nPlease confirm if this time works for you by reacting with 👍 or 👎.`;
+
+      await this.sendChannelMessage({
+        channelId,
+        content: followUpMessage,
+        userId,
+        parentId: threadId
+      });
+    } catch (error) {
+      console.error('Error sending follow-up:', error);
+      throw error;
+    }
+  }
+
+  private async findChannelByName(teamId: string, channelName: string): Promise<string | null> {
+    try {
+      const { data: channel, error } = await serviceClient
+        .from('channels')
+        .select('id')
+        .eq('team_id', teamId)
+        .ilike('name', channelName.toLowerCase())
+        .single();
+
+      if (error) {
+        console.error('Error finding channel:', error);
+        return null;
+      }
+
+      return channel?.id || null;
+    } catch (error) {
+      console.error('Error in findChannelByName:', error);
+      return null;
     }
   }
 
@@ -469,6 +595,72 @@ export class OpenAIRAGService implements RAGService {
             };
           }
           throw err;
+        }
+      } else if (action?.type === 'send_channel_message') {
+        // Get channel ID if one was provided
+        let targetChannelId: string | undefined = action.payload.channel_id;
+        
+        if (targetChannelId) {
+          // If a channel was specified, verify it exists
+          if (!targetChannelId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            // If not a UUID, treat it as a channel name
+            const foundChannelId = await this.findChannelByName(params.teamId, targetChannelId);
+            if (!foundChannelId) {
+              return {
+                answer: `I couldn't find the channel "${targetChannelId}". Would you like me to try in #general instead?`,
+                context: { messages: similarMessages }
+              };
+            }
+            targetChannelId = foundChannelId;
+          }
+        } else {
+          // Default to general channel if none specified
+          const generalChannelId = await this.findChannelByName(params.teamId, 'general');
+          if (!generalChannelId) {
+            return {
+              answer: "I couldn't find the #general channel. This is unusual - please contact your workspace administrator.",
+              context: { messages: similarMessages }
+            };
+          }
+          targetChannelId = generalChannelId;
+        }
+
+        const messageId = await this.sendChannelMessage({
+          channelId: targetChannelId,
+          content: action.payload.message!,
+          userId: params.userId
+        });
+
+        if (action.payload.expect_responses) {
+          // Get channel member count for expected responses
+          const { count: memberCount } = await serviceClient
+            .from('channel_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('channel_id', targetChannelId);
+
+          // For public channels, count all team members
+          const { count: teamMemberCount } = await serviceClient
+            .from('team_members')
+            .select('*', { count: 'exact', head: true })
+            .eq('team_id', params.teamId);
+
+          const expectedResponses = memberCount || teamMemberCount || 2; // Default to 2 if counts fail
+          
+          // Set timeout to 24 hours from now
+          const responseTimeout = new Date();
+          responseTimeout.setHours(responseTimeout.getHours() + 24);
+
+          // Store the thread ID for later analysis
+          await serviceClient
+            .from('event_coordination_threads')
+            .insert({
+              message_id: messageId,
+              channel_id: targetChannelId,
+              status: 'collecting_responses',
+              created_by: params.userId,
+              expected_responses: expectedResponses,
+              response_timeout: responseTimeout.toISOString()
+            });
         }
       }
 

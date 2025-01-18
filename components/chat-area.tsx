@@ -12,6 +12,7 @@ import { useMessages } from "@/hooks/useMessages"
 import { useDirectMessages } from "@/hooks/useDirectMessages"
 import { Message } from "@/types/chat"
 import { useAuth } from "@/contexts/auth-context"
+import { useEventCoordination } from "@/hooks/useEventCoordination"
 import Image from 'next/image'
 import { supabase } from "@/lib/supabase"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -102,6 +103,8 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
   const { user } = useAuth()
   const [recipientName, setRecipientName] = useState<string>('Direct Message')
   const [recipientEmail, setRecipientEmail] = useState<string>('')
+
+  useEventCoordination(activeChat.id)
 
   const {
     messages,
@@ -282,6 +285,11 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
                   <span className="text-xs text-muted-foreground">
                     {new Date(message.created_at).toLocaleString()}
                   </span>
+                  {message.extension?.isEventCoordination && (
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                      Event Coordination
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1">{message.content}</p>
                 {message.file && (
