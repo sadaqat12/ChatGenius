@@ -32,11 +32,14 @@ export interface ConversationMessage {
 }
 
 interface ActionIntent {
-  type: 'send_message';
+  type: 'send_message' | 'create_channel';
   payload: {
-    recipient: string;
-    message: string;
+    recipient?: string;
+    message?: string;
     time?: string;
+    channel_name?: string;
+    channel_description?: string;
+    is_private?: boolean;
   };
 }
 
@@ -226,6 +229,70 @@ export class OpenAIRAGService implements RAGService {
     }
   }
 
+  private async createChannel(params: {
+    teamId: string;
+    userId: string;
+    name: string;
+    description?: string;
+    isPrivate?: boolean;
+  }): Promise<string | null> {
+    try {
+      const normalizedName = params.name.toLowerCase().replace(/\s+/g, '-');
+
+      // Check if channel already exists in this team
+      const { data: existingChannel, error: existingError } = await serviceClient
+        .from('channels')
+        .select('id')
+        .eq('team_id', params.teamId)
+        .eq('name', normalizedName)
+        .single();
+
+      if (existingError && existingError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw existingError;
+      }
+
+      if (existingChannel) {
+        throw new Error(`Channel #${normalizedName} already exists`);
+      }
+
+      // Create the channel
+      const { data: channel, error: channelError } = await serviceClient
+        .from('channels')
+        .insert({
+          name: normalizedName,
+          team_id: params.teamId,
+          is_private: params.isPrivate || false,
+          created_by: params.userId,
+          description: params.description
+        })
+        .select()
+        .single();
+
+      if (channelError) throw channelError;
+      if (!channel) throw new Error('No channel returned after creation');
+
+      // If it's a private channel, add the creator as a member
+      if (params.isPrivate) {
+        const { error: memberError } = await serviceClient
+          .from('channel_members')
+          .insert({
+            channel_id: channel.id,
+            user_id: params.userId
+          });
+
+        if (memberError) throw memberError;
+      }
+
+      return channel.id;
+    } catch (err) {
+      console.error('Error creating channel:', err);
+      if (err instanceof Error && err.message.includes('already exists')) {
+        throw err; // Re-throw the "already exists" error to handle it differently
+      }
+      return null;
+    }
+  }
+
   private async generateAnswer(params: {
     question: string;
     context: string;
@@ -240,7 +307,7 @@ export class OpenAIRAGService implements RAGService {
       {
         role: 'system' as const,
         content: `You are a helpful AI assistant that answers questions based on the provided context. 
-        You can also perform actions like sending messages to team members.
+        You can perform actions like sending messages to team members and creating channels.
         
         When a user asks you to send a message to someone:
         1. Extract the recipient's name (partial names like "Sarah" for "Sarah Chen" are supported)
@@ -258,6 +325,23 @@ export class OpenAIRAGService implements RAGService {
                }
              }
            }
+
+        When a user asks you to create a channel:
+        1. Extract the channel name
+        2. Extract any description provided
+        3. Determine if it should be private
+        4. Format your response as JSON with:
+           {
+             "answer": "I'll create a [private/public] channel called #[name]",
+             "action": {
+               "type": "create_channel",
+               "payload": {
+                 "channel_name": "[name]",
+                 "channel_description": "[description]",
+                 "is_private": [true/false]
+               }
+             }
+           }
         
         Always format messages as "[Message via KIA] [content]" where {user} is the name of the person asking you to send the message.
         This helps recipients know who originally sent the message.
@@ -268,7 +352,7 @@ export class OpenAIRAGService implements RAGService {
         
         When referring to previous conversation, maintain consistency with your earlier responses.
         
-        Remember to ALWAYS format your response as a JSON object with an "answer" field, and optionally an "action" field for message sending.
+        Remember to ALWAYS format your response as a JSON object with an "answer" field, and optionally an "action" field for message sending or channel creation.
         Note: For finding users, you can use partial names - the system will match them to full names.`
       },
       ...validHistory,
@@ -342,9 +426,9 @@ export class OpenAIRAGService implements RAGService {
         conversationHistory: params.conversationHistory
       });
 
-      // If there's a send_message action, handle it
+      // Handle actions based on type
       if (action?.type === 'send_message') {
-        const recipient = await this.findUserByName(action.payload.recipient);
+        const recipient = await this.findUserByName(action.payload.recipient!);
         if (!recipient) {
           return {
             answer: `I couldn't find a user named "${action.payload.recipient}". Please try again with a different name.`,
@@ -353,7 +437,7 @@ export class OpenAIRAGService implements RAGService {
         }
 
         // Format the message with sender's name
-        const messageWithSender = action.payload.message.replace('{user}', senderName);
+        const messageWithSender = action.payload.message!.replace('{user}', senderName);
 
         // Send the direct message
         await this.createDirectMessage({
@@ -361,6 +445,31 @@ export class OpenAIRAGService implements RAGService {
           recipientId: recipient.id,
           content: messageWithSender
         });
+      } else if (action?.type === 'create_channel') {
+        try {
+          const channelId = await this.createChannel({
+            teamId: params.teamId,
+            userId: params.userId,
+            name: action.payload.channel_name!,
+            description: action.payload.channel_description,
+            isPrivate: action.payload.is_private
+          });
+
+          if (!channelId) {
+            return {
+              answer: `I couldn't create the channel "${action.payload.channel_name}". Please try again with a different name.`,
+              context: { messages: similarMessages }
+            };
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.includes('already exists')) {
+            return {
+              answer: err.message + ". Would you like me to do something else?",
+              context: { messages: similarMessages }
+            };
+          }
+          throw err;
+        }
       }
 
       return {
@@ -370,7 +479,7 @@ export class OpenAIRAGService implements RAGService {
           ...action,
           payload: {
             ...action.payload,
-            message: action.payload.message.replace('{user}', senderName)
+            message: action.payload.message?.replace('{user}', senderName)
           }
         } : undefined
       };

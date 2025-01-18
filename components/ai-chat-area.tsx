@@ -2,12 +2,13 @@ import { useRAG } from '@/hooks/useRAG';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Trash2 } from "lucide-react";
+import { Bot, Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useParams } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface ContextMessage {
   id: string;
@@ -31,6 +32,15 @@ export function AIChatArea() {
     teamId,
     similarityThreshold: 0.7
   });
+
+  const [openContexts, setOpenContexts] = useState<{[key: number]: boolean}>({});
+
+  const toggleContext = (index: number) => {
+    setOpenContexts(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
 
   useEffect(() => {
     if (lastAction?.type === 'send_message') {
@@ -110,19 +120,30 @@ export function AIChatArea() {
               <div className="flex flex-col gap-2">
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 {message.role === 'assistant' && context && context.messages.length > 0 && (
-                  <div className="text-xs text-muted-foreground mt-2 border-t pt-2">
-                    <p className="font-semibold mb-1">Related Messages:</p>
-                    <div className="space-y-2">
-                      {(context.messages as ContextMessage[]).map((msg) => (
-                        <div key={msg.id} className="p-2 rounded bg-background/50">
-                          <p className="mb-1">{msg.content}</p>
-                          <p className="text-xs opacity-50">
-                            Similarity: {(msg.similarity * 100).toFixed(1)}%
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <Collapsible
+                    open={openContexts[i]}
+                    onOpenChange={() => toggleContext(i)}
+                    className="text-xs text-muted-foreground mt-2 border-t pt-2"
+                  >
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="w-full flex justify-between items-center p-2 hover:bg-accent">
+                        <span className="font-semibold">Related Messages ({context.messages.length})</span>
+                        {openContexts[i] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="space-y-2 mt-2">
+                        {(context.messages as ContextMessage[]).map((msg) => (
+                          <div key={msg.id} className="p-2 rounded bg-background/50">
+                            <p className="mb-1">{msg.content}</p>
+                            <p className="text-xs opacity-50">
+                              Similarity: {(msg.similarity * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 )}
               </div>
             </div>
