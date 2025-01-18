@@ -265,7 +265,10 @@ export function ChatArea({ activeChat }: ChatAreaProps) {
       <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 min-h-0">
         <div className="space-y-4">
           {filteredMessages.map(message => (
-            <div key={message.id} className="flex items-start gap-3">
+            <div key={message.id} className={cn(
+              "flex items-start gap-3 p-4 rounded-lg",
+              activeThread && message.id === activeThread && "bg-gray-800/30"
+            )}>
               <Avatar>
                 <AvatarImage src={message.user?.avatar_url || undefined} />
                 <AvatarFallback>{message.user?.name?.[0] || '?'}</AvatarFallback>
